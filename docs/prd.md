@@ -1,4 +1,4 @@
-# VoiceStack — product brief
+# Sauda — product brief
 
 Written 20 November 2026, from a conversation with the builder. This is the source the
 floorplan blueprint was drawn from.

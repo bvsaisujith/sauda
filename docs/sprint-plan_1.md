@@ -1,4 +1,4 @@
-# VoiceStock: Sprint 1 Plan
+# Sauda: Sprint 1 Plan
 
 Part of [PRD.md](PRD.md). Sprint 1 runs 21 to 29 Nov 2026 (9 days). Sprint review and demo on 29 Nov.
 

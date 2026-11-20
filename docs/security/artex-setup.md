@@ -1,21 +1,21 @@
-﻿# VoiceStack security testing with ARTEX
+﻿# Sauda security testing with ARTEX
 
-ARTEX is installed at `D:\devtools\ARTEX` and is the planned local security-testing system for VoiceStack.
+ARTEX is installed at `D:\devtools\ARTEX` and is the planned local security-testing system for Sauda.
 
 ## Current state
 
 - ARTEX source checkout: `D:\devtools\ARTEX`
 - ARTEX UI/API: `http://127.0.0.1:8787` once Docker Desktop is running
-- PostgreSQL: ARTEX's private Docker database, not the future VoiceStack database
-- Target: VoiceStack only, once application code or a local deployment exists
+- PostgreSQL: ARTEX's private Docker database, not the future Sauda database
+- Target: Sauda only, once application code or a local deployment exists
 - Authorization: test only this project and explicitly approved local/staging targets
 - Dynamic testing: disabled/not started until a target URL and scope are approved
 
-## Safe first pass for VoiceStack
+## Safe first pass for Sauda
 
 1. White-box code audit of the repository: secrets, authentication, authorization, tenant isolation, billing/khata invariants, injection, unsafe file handling, voice input handling, and offline-sync conflicts.
 2. Dependency and configuration review: package/module vulnerabilities, container settings, CORS, cookies, headers, storage, logs and secret exposure.
-3. API recon against the locally running VoiceStack app only, after routes exist.
+3. API recon against the locally running Sauda app only, after routes exist.
 4. API security testing with approval gates: OTP abuse, IDOR/BOLA, role boundaries, invoice cancellation, payment reversal, credit-limit bypass, webhook verification, replay/idempotency and offline-sync duplication.
 5. Browser checks for the shopkeeper screens and voice confirmation flow.
 6. Evidence-backed report and retest after fixes.

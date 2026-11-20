@@ -1,4 +1,4 @@
-# VoiceStock: Payment Allocation Rules
+# Sauda: Payment Allocation Rules
 
 Part of [PRD.md](PRD.md). A partial payment is applied to the party's total credit, oldest bill first, unless the owner picks a specific bill.
 
