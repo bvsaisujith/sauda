@@ -1,0 +1,27 @@
+{
+  "name": "sauda",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sauda: Android-first agentic shop manager for Indian kirana and wholesale owners",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run build -w @sauda/shared && npm run dev -w @sauda/api",
+    "dev:web": "npm run dev -w @sauda/web",
+    "build": "npm run build -w @sauda/shared && npm run build -w @sauda/api && npm run build -w @sauda/web",
+    "typecheck": "npm run build -w @sauda/shared && npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.1"
+  }
+}

@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+apps/web/android/
+apps/web/ios/
+apps/web/.capacitor/
+
+.DS_Store
+Thumbs.db
+*.log
