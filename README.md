@@ -59,7 +59,7 @@ npm install
 cp .env.example .env      # fill DATABASE_URL and provider keys
 npm run check             # lint, typecheck, test, build
 npm run dev               # API on :3000
-npm run dev:web           # web app on :5173
+npm run dev:web           # web app on :5174 (set WEB_PORT to override)
 ```
 
 The API reads `.env` from the repository root and from `apps/api/.env`. Real environment
