@@ -11,6 +11,7 @@ const envSchema = z
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     APP_ORIGIN: z.string().default('http://localhost:5173'),
     DATABASE_URL: z.string().min(1).optional(),
+    DEVICE_TOKEN_DAYS: z.coerce.number().int().min(1).max(3650).default(180),
   })
   .superRefine((value, context) => {
     if (!value.DATABASE_URL) {

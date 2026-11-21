@@ -96,7 +96,7 @@ model Owner {
   deviceTokens DeviceToken[]
   auditEntries AuditEntry[]
 
-  @@index([shopId])
+  @@unique([shopId])
 }
 
 model DeviceToken {
@@ -107,9 +107,11 @@ model DeviceToken {
   label      String?
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
+  expiresAt  DateTime
   revokedAt  DateTime?
 
   @@index([ownerId])
+  @@index([expiresAt])
 }
 
 model Item {
