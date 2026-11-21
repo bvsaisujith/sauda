@@ -1,0 +1,476 @@
+// Sauda data model.
+// Money is stored in whole paise as Decimal(14, 0).
+// Quantities are Decimal(12, 3) so grams and split units stay exact.
+// Stock and ledger history is append-only: corrections are new rows.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Source {
+  TOUCH
+  VOICE
+  SYSTEM
+}
+
+enum StockMovementType {
+  RECEIPT
+  SALE
+  ADJUSTMENT
+  REPACK_CONSUME
+  REPACK_PRODUCE
+  REVERSAL
+}
+
+enum RepackStatus {
+  ACTIVE
+  REVERSED
+}
+
+enum LedgerDirection {
+  RECEIVABLE
+  PAYABLE
+}
+
+enum LedgerEntryType {
+  BILL
+  PAYMENT
+  ADVANCE
+  REVERSAL
+}
+
+enum PaymentDirection {
+  IN
+  OUT
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  BANK
+}
+
+enum BillStatus {
+  SAVED
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+enum ProposalStatus {
+  PENDING
+  COMMITTED
+  EXPIRED
+  CANCELLED
+}
+
+model Shop {
+  id               String   @id @default(cuid())
+  name             String
+  deadStockDays    Int      @default(60)
+  festivalLeadDays Int      @default(15)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  owners Owner[]
+}
+
+model Owner {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id])
+  pinHash   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deviceTokens DeviceToken[]
+  auditEntries AuditEntry[]
+
+  @@index([shopId])
+}
+
+model DeviceToken {
+  id         String    @id @default(cuid())
+  ownerId    String
+  owner      Owner     @relation(fields: [ownerId], references: [id])
+  tokenHash  String    @unique
+  label      String?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  @@index([ownerId])
+}
+
+model Item {
+  id               String  @id @default(cuid())
+  shopId           String
+  name             String
+  baseUnit         String
+  sellPrice        Decimal @db.Decimal(14, 0)
+  buyPrice         Decimal @db.Decimal(14, 0)
+  priceIncludesGst Boolean @default(true)
+  gstRate          Int     @default(0)
+  hsnCode          String?
+  reorderLevel     Decimal @default(0) @db.Decimal(12, 3)
+
+  packOfItemId String?
+  packOf       Item?    @relation("ItemPacks", fields: [packOfItemId], references: [id])
+  packs        Item[]   @relation("ItemPacks")
+  packQuantity Decimal? @db.Decimal(12, 3)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+
+  batches       StockBatch[]
+  movements     StockMovement[]
+  salesLines    SalesBillLine[]
+  purchaseLines PurchaseBillLine[]
+  orderLines    PurchaseOrderLine[]
+
+  @@unique([shopId, name])
+  @@index([shopId, packOfItemId])
+}
+
+model StockBatch {
+  id         String    @id @default(cuid())
+  itemId     String
+  item       Item      @relation(fields: [itemId], references: [id])
+  receivedAt DateTime  @default(now())
+  quantity   Decimal   @db.Decimal(12, 3)
+  remaining  Decimal   @db.Decimal(12, 3)
+  unitCost   Decimal   @db.Decimal(14, 0)
+  expiryDate DateTime?
+  repackId   String?
+  createdAt  DateTime  @default(now())
+
+  movements StockMovement[]
+
+  @@index([itemId, receivedAt])
+  @@index([expiryDate])
+}
+
+model StockMovement {
+  id            String            @id @default(cuid())
+  itemId        String
+  item          Item              @relation(fields: [itemId], references: [id])
+  batchId       String?
+  batch         StockBatch?       @relation(fields: [batchId], references: [id])
+  type          StockMovementType
+  quantity      Decimal           @db.Decimal(12, 3)
+  unitCost      Decimal?          @db.Decimal(14, 0)
+  referenceType String?
+  referenceId   String?
+  note          String?
+  source        Source            @default(TOUCH)
+  createdAt     DateTime          @default(now())
+
+  @@index([itemId, createdAt])
+  @@index([referenceType, referenceId])
+}
+
+model Repack {
+  id              String       @id @default(cuid())
+  shopId          String
+  baseItemId      String
+  packItemId      String
+  consumedQty     Decimal      @db.Decimal(12, 3)
+  producedQty     Decimal      @db.Decimal(12, 3)
+  wastageQty      Decimal      @default(0) @db.Decimal(12, 3)
+  wastageReason   String?
+  consumedCost    Decimal      @db.Decimal(14, 0)
+  producedCost    Decimal      @db.Decimal(14, 0)
+  producedBatchId String?
+  status          RepackStatus @default(ACTIVE)
+  createdAt       DateTime     @default(now())
+  reversedAt      DateTime?
+
+  consumptions RepackConsumption[]
+
+  @@index([shopId, createdAt])
+  @@index([baseItemId])
+  @@index([packItemId])
+}
+
+model RepackConsumption {
+  id       String  @id @default(cuid())
+  repackId String
+  repack   Repack  @relation(fields: [repackId], references: [id])
+  batchId  String
+  quantity Decimal @db.Decimal(12, 3)
+  unitCost Decimal @db.Decimal(14, 0)
+
+  @@index([repackId])
+}
+
+model Party {
+  id         String    @id @default(cuid())
+  shopId     String
+  name       String
+  phone      String?
+  area       String?
+  isCustomer Boolean   @default(true)
+  isSupplier Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+
+  ledgerEntries  LedgerEntry[]
+  salesBills     SalesBill[]
+  purchaseBills  PurchaseBill[]
+  purchaseOrders PurchaseOrder[]
+  payments       Payment[]
+
+  @@unique([shopId, name])
+  @@index([shopId, phone])
+}
+
+model LedgerEntry {
+  id          String          @id @default(cuid())
+  partyId     String
+  party       Party           @relation(fields: [partyId], references: [id])
+  direction   LedgerDirection
+  type        LedgerEntryType
+  amount      Decimal         @db.Decimal(14, 0)
+  billId      String?
+  paymentId   String?
+  dueDate     DateTime?
+  description String?
+  createdAt   DateTime        @default(now())
+
+  allocations PaymentAllocation[]
+
+  @@index([partyId, direction, createdAt])
+}
+
+model Payment {
+  id           String           @id @default(cuid())
+  shopId       String
+  partyId      String
+  party        Party            @relation(fields: [partyId], references: [id])
+  direction    PaymentDirection
+  mode         PaymentMode
+  amount       Decimal          @db.Decimal(14, 0)
+  paidAt       DateTime         @default(now())
+  note         String?
+  reversalOfId String?          @unique
+  createdAt    DateTime         @default(now())
+
+  allocations PaymentAllocation[]
+
+  @@index([shopId, paidAt])
+  @@index([partyId, direction])
+}
+
+model PaymentAllocation {
+  id            String      @id @default(cuid())
+  paymentId     String
+  payment       Payment     @relation(fields: [paymentId], references: [id])
+  ledgerEntryId String
+  ledgerEntry   LedgerEntry @relation(fields: [ledgerEntryId], references: [id])
+  amount        Decimal     @db.Decimal(14, 0)
+  createdAt     DateTime    @default(now())
+
+  @@unique([paymentId, ledgerEntryId])
+  @@index([ledgerEntryId])
+}
+
+model SalesBill {
+  id          String     @id @default(cuid())
+  shopId      String
+  partyId     String?
+  party       Party?     @relation(fields: [partyId], references: [id])
+  number      String
+  status      BillStatus @default(SAVED)
+  issuedAt    DateTime   @default(now())
+  subtotal    Decimal    @db.Decimal(14, 0)
+  discount    Decimal    @default(0) @db.Decimal(14, 0)
+  taxable     Decimal    @db.Decimal(14, 0)
+  cgst        Decimal    @default(0) @db.Decimal(14, 0)
+  sgst        Decimal    @default(0) @db.Decimal(14, 0)
+  roundOff    Decimal    @default(0) @db.Decimal(14, 0)
+  total       Decimal    @db.Decimal(14, 0)
+  paid        Decimal    @default(0) @db.Decimal(14, 0)
+  credit      Decimal    @default(0) @db.Decimal(14, 0)
+  notes       String?
+  createdAt   DateTime   @default(now())
+  cancelledAt DateTime?
+
+  lines SalesBillLine[]
+
+  @@unique([shopId, number])
+  @@index([shopId, issuedAt])
+}
+
+model SalesBillLine {
+  id        String    @id @default(cuid())
+  billId    String
+  bill      SalesBill @relation(fields: [billId], references: [id])
+  itemId    String
+  item      Item      @relation(fields: [itemId], references: [id])
+  quantity  Decimal   @db.Decimal(12, 3)
+  rate      Decimal   @db.Decimal(14, 0)
+  discount  Decimal   @default(0) @db.Decimal(14, 0)
+  taxable   Decimal   @db.Decimal(14, 0)
+  gstRate   Int
+  cgst      Decimal   @default(0) @db.Decimal(14, 0)
+  sgst      Decimal   @default(0) @db.Decimal(14, 0)
+  lineTotal Decimal   @db.Decimal(14, 0)
+
+  @@index([billId])
+  @@index([itemId])
+}
+
+model PurchaseBill {
+  id                 String         @id @default(cuid())
+  shopId             String
+  supplierId         String
+  supplier           Party          @relation(fields: [supplierId], references: [id])
+  purchaseOrderId    String?
+  purchaseOrder      PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  number             String
+  supplierBillNumber String?
+  status             BillStatus     @default(SAVED)
+  receivedAt         DateTime       @default(now())
+  subtotal           Decimal        @db.Decimal(14, 0)
+  taxable            Decimal        @db.Decimal(14, 0)
+  cgst               Decimal        @default(0) @db.Decimal(14, 0)
+  sgst               Decimal        @default(0) @db.Decimal(14, 0)
+  total              Decimal        @db.Decimal(14, 0)
+  paid               Decimal        @default(0) @db.Decimal(14, 0)
+  credit             Decimal        @default(0) @db.Decimal(14, 0)
+  notes              String?
+  createdAt          DateTime       @default(now())
+  cancelledAt        DateTime?
+
+  lines PurchaseBillLine[]
+
+  @@unique([shopId, number])
+  @@index([shopId, receivedAt])
+  @@index([supplierId])
+}
+
+model PurchaseBillLine {
+  id        String       @id @default(cuid())
+  billId    String
+  bill      PurchaseBill @relation(fields: [billId], references: [id])
+  itemId    String
+  item      Item         @relation(fields: [itemId], references: [id])
+  quantity  Decimal      @db.Decimal(12, 3)
+  rate      Decimal      @db.Decimal(14, 0)
+  taxable   Decimal      @db.Decimal(14, 0)
+  gstRate   Int          @default(0)
+  cgst      Decimal      @default(0) @db.Decimal(14, 0)
+  sgst      Decimal      @default(0) @db.Decimal(14, 0)
+  lineTotal Decimal      @db.Decimal(14, 0)
+
+  @@index([billId])
+  @@index([itemId])
+}
+
+model PurchaseBudget {
+  id        String   @id @default(cuid())
+  shopId    String
+  startDate DateTime
+  endDate   DateTime
+  amount    Decimal  @db.Decimal(14, 0)
+  createdAt DateTime @default(now())
+
+  orders PurchaseOrder[]
+
+  @@index([shopId, startDate, endDate])
+}
+
+model PurchaseOrder {
+  id             String              @id @default(cuid())
+  shopId         String
+  supplierId     String
+  supplier       Party               @relation(fields: [supplierId], references: [id])
+  budgetId       String?
+  budget         PurchaseBudget?     @relation(fields: [budgetId], references: [id])
+  status         PurchaseOrderStatus @default(DRAFT)
+  total          Decimal             @db.Decimal(14, 0)
+  overrideReason String?
+  notes          String?
+  createdAt      DateTime            @default(now())
+  orderedAt      DateTime?
+  receivedAt     DateTime?
+  cancelledAt    DateTime?
+
+  lines         PurchaseOrderLine[]
+  purchaseBills PurchaseBill[]
+
+  @@index([shopId, status])
+  @@index([supplierId])
+}
+
+model PurchaseOrderLine {
+  id          String        @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id])
+  itemId      String
+  item        Item          @relation(fields: [itemId], references: [id])
+  quantity    Decimal       @db.Decimal(12, 3)
+  rate        Decimal       @db.Decimal(14, 0)
+  receivedQty Decimal       @default(0) @db.Decimal(12, 3)
+
+  @@index([orderId])
+}
+
+model FestivalNote {
+  id        String   @id @default(cuid())
+  shopId    String
+  title     String
+  startsOn  DateTime
+  endsOn    DateTime
+  leadDays  Int
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([shopId, startsOn])
+}
+
+model Proposal {
+  id             String         @id @default(cuid())
+  shopId         String
+  tool           String
+  args           Json
+  preview        Json
+  status         ProposalStatus @default(PENDING)
+  idempotencyKey String         @unique
+  expiresAt      DateTime
+  committedAt    DateTime?
+  result         Json?
+  source         Source         @default(TOUCH)
+  createdAt      DateTime       @default(now())
+
+  @@index([shopId, status, expiresAt])
+}
+
+model AuditEntry {
+  id         String   @id @default(cuid())
+  shopId     String
+  ownerId    String?
+  owner      Owner?   @relation(fields: [ownerId], references: [id])
+  source     Source
+  operation  String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
+
+  @@index([shopId, createdAt])
+  @@index([entityType, entityId])
+}

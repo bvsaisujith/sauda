@@ -40,14 +40,46 @@ Text/Voice ─► Shared tools ─┘
 
 ## Repository status
 
-This repository currently contains product requirements and architecture. The application code
-is built next. The interactive blueprint is generated locally in the ignored `floorplan/` directory.
+The monorepo is live. `packages/shared` holds DTOs and Zod contracts, `apps/api` is the Node
+service, `apps/web` is the React app. The interactive blueprint is generated locally in the
+ignored `floorplan/` directory.
 
 - Product requirements: [`docs/PRD_1.md`](docs/PRD_1.md)
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
 - Payment allocation rules: [`docs/payment-allocation.md`](docs/payment-allocation.md)
 - Delivery plan: [`docs/sprint-plan.md`](docs/sprint-plan.md)
 - Security testing plan: [`docs/security/artex-setup.md`](docs/security/artex-setup.md)
+
+## Getting started
+
+Prerequisites: Node 22+ and npm.
+
+```bash
+npm install
+cp .env.example .env      # fill DATABASE_URL and provider keys
+npm run check             # lint, typecheck, test, build
+npm run dev               # API on :3000
+npm run dev:web           # web app on :5173
+```
+
+The API reads `.env` from the repository root and from `apps/api/.env`. Real environment
+variables always win, so production never depends on a file.
+
+### Database
+
+Prisma 7 owns the schema in `apps/api/prisma/schema.prisma` and every change ships as a
+migration.
+
+```bash
+cd apps/api
+npx prisma dev            # local Postgres for development, prints a URL
+# point DATABASE_URL at that URL and create the database once: CREATE DATABASE sauda;
+npm run migrate:deploy    # apply migrations
+npm run smoke:db          # create, read and clean up a few rows
+```
+
+Production runs `npm run migrate:deploy -w @sauda/api` on release. Money is stored as whole
+paise (`Decimal(14,0)`) and quantities as `Decimal(12,3)`; history tables are append-only.
 
 ## Source repositories
 
