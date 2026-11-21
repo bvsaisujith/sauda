@@ -1,6 +1,6 @@
 # Sauda: Architecture and Tech Stack
 
-Part of [PRD_1.md](PRD_1.md). One Express server holds the domain services. The touch UI reaches them through REST routes and voice reaches them through agent tools, so both end in the same functions and rules.
+Part of [PRD_1.md](PRD_1.md). One Express deployable holds the domain modules. Touch reaches them through REST routes and voice reaches them through agent tools, so both end in the same public module functions.
 
 ## Diagram
 
@@ -13,42 +13,60 @@ flowchart TD
     subgraph Server[Node + Express modular monolith]
         R[REST routes]
         A[Agent tools: reads and proposals]
-        S[Domain modules: stock, parties, bills, payments, purchasing, demand]
+        P[Provider adapters: LLM, STT]
+        M[Domain modules: items, stock, repack, parties, bills, gst, purchasing, demand, payments, credit, proposals, audit, auth]
     end
-    subgraph Hosted[Hosted APIs]
-        SA[Sarvam AI: speech to text]
-        OR[OpenRouter: function-calling models]
+    subgraph Outside[External services]
+        SA[Sarvam STT]
+        OR[OpenRouter]
     end
-    DB[(Postgres-compatible database)]
+    DB[(Postgres via DATABASE_URL)]
     T --> R
     V --> A
-    R --> S
-    A --> S
-    A --> SA
-    A --> OR
-    S --> DB
+    R --> M
+    A --> M
+    A --> P
+    P --> SA
+    P --> OR
+    M --> DB
 ```
 
 ## Modular monolith boundaries
 
-Sauda uses one deployable server, but domain modules have explicit boundaries:
-
 | Module | Responsibility |
 | --- | --- |
-| `items` | Item definitions, units, prices and reorder settings |
-| `stock` | Append-only stock movements and stock calculations |
+| `auth` | Owner PIN, device tokens and revocation |
+| `items` | Items, units, pack size, prices, HSN and GST rate |
+| `stock` | Append-only batch movements, FIFO layers and stock queries |
+| `repack` | Consuming base stock, producing packs, wastage and reversal |
 | `parties` | Customer/supplier profiles and contact import/export |
 | `bills` | Sales and purchase bills and bill lines |
+| `gst` | Tax calculation, CGST/SGST split and GST summaries |
 | `payments` | Payment records and reversals |
 | `credit` | Receivable, payable and advance ledgers |
-| `purchasing` | Cash budgets, reorder suggestions and purchase drafts |
-| `demand` | Sales velocity, festival notes, expiry and dead-stock signals |
+| `purchasing` | Budgets, purchase drafts, purchase orders and goods receipt |
+| `demand` | Velocity, festival notes, dead-stock and expiry signals |
 | `proposals` | Preview, approval, expiry and one-time commit |
 | `audit` | Actor, source, operation and before/after history |
-| `agent` | Shared read/write tool definitions and model loop |
+| `agent` | Tool definitions and the model loop |
 | `voice` | Microphone gateway and Sarvam transcription |
 
-A module may expose an explicit service API to another module. It may not reach another module's database tables directly.
+### The one rule that keeps it modular
+
+Each module has exactly one public door:
+
+```text
+apps/api/src/modules/<name>/
+  public.ts        <- the only file another module may import
+  <name>-service.ts
+  ...internal files
+```
+
+- Outside code imports `modules/<name>/public.ts` only.
+- Dependency-cruiser fails CI on any other path into a module.
+- `public.ts` exports functions and DTOs, never Prisma types.
+- Modules may call each other only through `public.ts`.
+- Circular dependencies are resolved by moving shared contracts into `packages/shared`, not by importing internals.
 
 ## Repository layout
 
@@ -56,19 +74,62 @@ A module may expose an explicit service API to another module. It may not reach 
 sauda/
   apps/
     web/                  React, Vite, Tailwind and Capacitor
-    api/                  Express modular monolith
+    api/
+      src/
+        modules/          domain modules, each with public.ts
+        routes/           thin Express wrappers
+        agent/            tool registry and model loop
+        providers/        LLM, STT and database adapters
+        db/               Prisma client
+      prisma/
   packages/
-    shared/               Zod contracts, types and tool definitions
+    shared/               Zod contracts, DTOs and tool definitions
+  deploy/                 Oracle configuration, reverse proxy and services
   docs/
 ```
 
+## Provider adapters
+
+Everything external is resolved from environment at startup:
+
+| Concern | Variables | Adapter |
+| --- | --- | --- |
+| Database | `DATABASE_URL` | `providers/db.ts` |
+| LLM | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | `providers/llm.ts` |
+| Speech | `STT_BASE_URL`, `STT_API_KEY`, `STT_MODEL`, `STT_LANGUAGES` | `providers/stt.ts` |
+| Payments | Reserved, not in V1 | `providers/payments.ts` seam |
+
+Changing a provider changes environment, not module code.
+
 ## Key rules
 
-- REST and agent tools are thin wrappers around the same domain services.
-- Agent tools never have direct database access.
+- REST routes and agent tools are thin wrappers around the same module public functions.
+- Agent tools never touch the database.
 - Read tools run immediately; write tools create proposals.
-- Only `POST /proposals/:id/commit` commits a proposal.
+- Only `POST /proposals/:id/commit` commits.
 - Stock and balances are sums over append-only ledgers.
 - Money is stored and calculated in whole paise.
-- Purchasing proposals explain the evidence used and require owner approval.
-- MCP is added after function calling is stable; it is not a separate implementation layer.
+- Stock value and cost of goods are FIFO; summaries adjust across batches on hand.
+- Expiry belongs to a batch, never to an item as a whole.
+- Tax is computed per line and split CGST/SGST only.
+- Repacking moves cost from consumed batches into produced pack batches and records wastage.
+- Purchases are two-step: order, then receipt; only receipt changes stock and payables.
+- Credit warnings are shown, never applied automatically.
+- Every write is audited with its source, touch or voice.
+
+## Authentication
+
+- Owner sets a six-digit PIN on first run.
+- The server issues a device token bound to that device.
+- The app stores the token in secure storage; the PIN unlocks it locally.
+- Tokens can be revoked server-side.
+- REST and agent calls require the token.
+
+## Deployment for the demo
+
+- Oracle instance, 2 GB RAM, bare metal first.
+- Node API behind Caddy or Nginx with HTTPS.
+- Postgres on the same instance, reached through `DATABASE_URL`.
+- Prisma migrations run as a release step.
+- Containers are added after the demo; the module layout does not change.
+- Voice and LLM calls stay server-side so keys never reach the APK.
