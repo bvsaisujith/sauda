@@ -15,15 +15,20 @@
     "dev": "npm run build -w @sauda/shared && npm run dev -w @sauda/api",
     "dev:web": "npm run dev -w @sauda/web",
     "build": "npm run build -w @sauda/shared && npm run build -w @sauda/api && npm run build -w @sauda/web",
-    "typecheck": "npm run build -w @sauda/shared && npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run build -w @sauda/shared && npm run typecheck --workspaces --if-present && tsc -p tsconfig.json",
     "test": "vitest run",
     "lint": "eslint .",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "boundaries": "npm run boundaries:code && npm run boundaries:deps",
+    "boundaries:code": "tsx tools/module-boundaries.ts",
+    "boundaries:deps": "depcruise apps packages --config .dependency-cruiser.cjs",
+    "check": "npm run lint && npm run typecheck && npm run boundaries && npm run test && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.6",
+    "dependency-cruiser": "^18.8.0",
     "eslint": "^10.15.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.73.0",
     "vitest": "^5.1.1"

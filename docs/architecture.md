@@ -63,10 +63,23 @@ apps/api/src/modules/<name>/
 ```
 
 - Outside code imports `modules/<name>/public.ts` only.
-- Dependency-cruiser fails CI on any other path into a module.
+- Importing anything else inside a module fails `npm run boundaries`, in CI and locally.
 - `public.ts` exports functions and DTOs, never Prisma types.
+- The Prisma client may be imported only inside a module or `apps/api/src/db.ts`.
 - Modules may call each other only through `public.ts`.
+- `packages/shared` stays a leaf: contracts never import from `apps/`.
 - Circular dependencies are resolved by moving shared contracts into `packages/shared`, not by importing internals.
+
+Two checks enforce this, both running in `npm run check` and in the `verify` CI job:
+
+| Command | What it proves |
+| --- | --- |
+| `npm run boundaries:deps` | dependency-cruiser: no import cycles, `shared` is a leaf, the web app never imports server or Prisma code |
+| `npm run boundaries:code` | `tools/module-boundaries.ts`: parses the real import graph with the TypeScript compiler, so deep imports are rejected while same-module imports and cross-module `public.ts` calls still pass |
+
+The code check compares the importing file with the target, which regex-only rules cannot do. Its
+own tests in `tools/module-boundaries.test.ts` build small fixture trees and assert that a deep
+import fails while the public door passes, so the gate cannot rot silently.
 
 ## Repository layout
 
