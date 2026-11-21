@@ -68,7 +68,10 @@ apps/api/src/modules/<name>/
 - The Prisma client may be imported only inside a module or `apps/api/src/db.ts`.
 - Modules may call each other only through `public.ts`.
 - `packages/shared` stays a leaf: contracts never import from `apps/`.
-- Circular dependencies are resolved by moving shared contracts into `packages/shared`, not by importing internals.
+- `apps/api/src/providers/` is the only vendor integration layer. Domain modules receive vendor-neutral LLM and STT interfaces.
+- OpenAI-compatible chat calls and Sarvam-compatible multipart transcription are assembled from environment variables.
+- Provider API keys never enter shared DTOs, web code or responses.
+- Missing provider credentials fail environment validation outside test mode; tests inject mock fetch implementations.
 
 Two checks enforce this, both running in `npm run check` and in the `verify` CI job:
 

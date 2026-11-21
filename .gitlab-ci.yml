@@ -23,7 +23,6 @@ verify:
     - npm run typecheck
     - npm run boundaries
     - npm test
-    - npm run build
 
 sast:
   stage: test

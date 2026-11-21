@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export * from './auth.js';
+export * from './providers.js';
 
 export const APP_NAME = 'Sauda';
 
