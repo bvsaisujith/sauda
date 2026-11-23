@@ -7,7 +7,7 @@ export default function App() {
 
   if (status === 'loading') {
     return (
-      <main className="flex min-h-dvh items-center justify-center bg-stone-950 text-stone-400">
+      <main className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground">
         <p className="text-sm">Opening Sauda…</p>
       </main>
     );

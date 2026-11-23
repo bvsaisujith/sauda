@@ -90,16 +90,16 @@ export default function AuthScreen() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col bg-stone-950 text-stone-100">
+    <main className="flex min-h-dvh flex-col bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 px-6 py-12">
         <header className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-400">
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-accent">
             Shop manager
           </p>
           <h1 className="text-4xl font-semibold tracking-tight">
             {isSetup ? 'Set up Sauda' : 'Unlock Sauda'}
           </h1>
-          <p className="text-sm leading-relaxed text-stone-400">
+          <p className="text-sm leading-relaxed text-muted-foreground">
             {isSetup
               ? 'Name your shop and choose a PIN. This device stays signed in until you sign out.'
               : 'Enter your owner PIN. Every change still needs your approval.'}
@@ -109,7 +109,7 @@ export default function AuthScreen() {
         <form className="space-y-5" onSubmit={onSubmit} noValidate>
           {isSetup ? (
             <div className="space-y-2">
-              <label htmlFor={shopId} className="text-sm font-medium text-stone-300">
+              <label htmlFor={shopId} className="text-sm font-medium text-foreground">
                 Shop name
               </label>
               <input
@@ -121,14 +121,14 @@ export default function AuthScreen() {
                 autoComplete="organization"
                 autoFocus
                 maxLength={80}
-                className="w-full rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-base outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30"
+                className="w-full rounded-xl border border-border bg-input px-4 py-3 text-base text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/30"
                 placeholder="e.g. Sri Lakshmi Kirana"
               />
             </div>
           ) : null}
 
           <div className="space-y-2">
-            <label htmlFor={pinId} className="text-sm font-medium text-stone-300">
+            <label htmlFor={pinId} className="text-sm font-medium text-foreground">
               {isSetup ? 'Choose a PIN' : 'PIN'}
             </label>
             <input
@@ -143,18 +143,18 @@ export default function AuthScreen() {
               pattern="\d*"
               autoComplete={isSetup ? 'new-password' : 'current-password'}
               maxLength={8}
-              className="w-full rounded-xl border border-stone-800 bg-stone-900 px-4 py-4 text-center text-3xl tracking-[0.4em] outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30"
+              className="w-full rounded-xl border border-border bg-input px-4 py-4 text-center text-3xl tracking-[0.4em] text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/30"
               placeholder="••••"
               aria-describedby={`${pinId}-hint`}
             />
-            <p id={`${pinId}-hint`} className="text-xs text-stone-500">
+            <p id={`${pinId}-hint`} className="text-xs text-muted-foreground">
               4 to 8 digits. Five wrong attempts lock the PIN for 15 minutes.
             </p>
           </div>
 
           <div aria-live="polite" className="min-h-6">
             {message ? (
-              <p role="alert" className="text-sm text-rose-300">
+              <p role="alert" className="text-sm text-destructive">
                 {message}
               </p>
             ) : null}
@@ -163,7 +163,7 @@ export default function AuthScreen() {
           <button
             type="submit"
             disabled={busy || locked}
-            className="w-full rounded-xl bg-amber-500 px-4 py-4 text-base font-semibold text-stone-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-stone-700 disabled:text-stone-400"
+            className="w-full rounded-xl bg-primary px-4 py-4 text-base font-semibold text-primary-foreground transition hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
           >
             {busy ? 'Please wait…' : locked ? `Locked · ${remainingSeconds}s` : isSetup ? 'Create shop' : 'Unlock'}
           </button>
@@ -179,7 +179,7 @@ export default function AuthScreen() {
               requestSetup();
             }
           }}
-          className="self-center text-sm text-stone-400 underline-offset-4 hover:text-amber-300 hover:underline"
+          className="self-center text-sm text-muted-foreground underline-offset-4 hover:text-accent hover:underline"
         >
           {isSetup ? 'Already set up? Unlock with your PIN' : 'First time on this device? Set up your shop'}
         </button>
