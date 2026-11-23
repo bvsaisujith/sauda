@@ -74,6 +74,12 @@ build-apk:
     - npm run build -w @sauda/shared
     - npm run build -w @sauda/web
     - grep -R -q "api.sauda.thedeploymentlab.app" apps/web/dist/assets || (echo "Production API domain missing from web bundle"; exit 1)
+    - |
+      if [ ! -d apps/web/android ]; then
+        cd apps/web
+        npx cap add android
+        cd ../..
+      fi
     - npm run cap:sync -w @sauda/web
     - cd apps/web/android
     - ./gradlew assembleDebug --no-daemon
