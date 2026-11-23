@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export * from './auth.js';
 export * from './providers.js';
+export * from './voice.js';
 
 export const APP_NAME = 'Sauda';
 

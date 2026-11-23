@@ -81,6 +81,28 @@ npm run smoke:db          # create, read and clean up a few rows
 Production runs `npm run migrate:deploy -w @sauda/api` on release. Money is stored as whole
 paise (`Decimal(14,0)`) and quantities as `Decimal(12,3)`; history tables are append-only.
 
+### Voice transcription
+
+`POST /voice/transcribe` accepts a base64 audio clip (WAV, WebM, OGG, MP3, M4A, FLAC or
+AIFF, 6 MB maximum), requires a device token, and returns English text. Clips are capped at
+30 seconds by Sarvam's REST limit and are never stored.
+
+Sarvam runs `saaras:v4` with `mode=translate` and auto-detected language, so speech in any of
+the 22 supported Indian languages comes back as English. Set `SARVAM_API_KEY` (or
+`STT_API_KEY`) in `apps/api/.env`.
+
+To test the whole path with a real microphone (requires `ffmpeg` on `PATH`):
+
+```bash
+cd apps/api
+SAUDA_PIN=your-pin npm run mic:test
+npm run mic:test -- --seconds 8 --device "Microphone Array (Realtek(R) Audio)"
+npm run mic:test -- --file sample.wav   # skip the microphone
+```
+
+The script mints a device token with `SAUDA_PIN` (running first-run setup if the database is
+empty), posts the clip to the authenticated route, and prints the transcript.
+
 ## Source repositories
 
 - Authoritative private repository: https://gitlab.com/saisujithbv/sauda

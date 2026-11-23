@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { AuthError } from '../modules/auth/public.js';
+import { HttpError } from './http-error.js';
+import { ProviderHttpError } from '../providers/llm.js';
 
 interface BodyParseError {
   type?: string;
@@ -34,6 +36,19 @@ export function errorHandler(
     return;
   }
 
+  if (error instanceof HttpError) {
+    response.status(error.status).json({ code: error.code, message: error.message });
+    return;
+  }
+
+  if (error instanceof ProviderHttpError) {
+    response.status(502).json({
+      code: 'provider-failed',
+      message: `The ${error.provider.toUpperCase()} provider rejected the request`,
+    });
+    return;
+  }
+
   if (error instanceof ZodError) {
     response.status(400).json({
       code: 'validation-failed',
@@ -49,6 +64,11 @@ export function errorHandler(
 
   if (isBodyParseError(error)) {
     response.status(400).json({ code: 'validation-failed', message: 'Request body is not JSON' });
+    return;
+  }
+
+  if ((error as BodyParseError | null)?.type === 'entity.too.large') {
+    response.status(413).json({ code: 'payload-too-large', message: 'Request body is too large' });
     return;
   }
 

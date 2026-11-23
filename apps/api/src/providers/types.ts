@@ -21,7 +21,11 @@ export interface TranscribeRequest {
   filename: string;
   mimeType: string;
   language?: string;
+  mode?: TranscribeMode;
+  keyterms?: readonly string[];
 }
+
+export type TranscribeMode = 'transcribe' | 'translate' | 'verbatim' | 'translit' | 'codemix';
 
 export interface SttProvider {
   readonly name: string;

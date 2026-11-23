@@ -28,6 +28,8 @@ export const chatResponseSchema = z.object({
 export const transcriptionSchema = z.object({
   text: z.string(),
   language: z.string().nullable().optional(),
+  confidence: z.number().min(0).max(1).nullable().optional(),
+  requestId: z.string().nullable().optional(),
   durationSeconds: z.number().nonnegative().optional(),
 });
 

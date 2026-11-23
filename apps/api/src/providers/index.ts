@@ -25,15 +25,17 @@ export const providers: ProviderFactory = {
 
   stt() {
     if (!sttSingleton) {
-      if (!env.STT_API_KEY) {
-        throw new Error('STT_API_KEY is required outside test mode');
+      const apiKey = env.SARVAM_API_KEY ?? env.STT_API_KEY;
+      if (!apiKey) {
+        throw new Error('SARVAM_API_KEY or STT_API_KEY is required outside test mode');
       }
 
       sttSingleton = createSarvamCompatibleStt({
         baseUrl: env.STT_BASE_URL,
-        apiKey: env.STT_API_KEY,
+        apiKey,
         model: env.STT_MODEL,
-        languages: env.STT_LANGUAGES.split(',').map((language) => language.trim()).filter(Boolean),
+        mode: env.STT_MODE,
+        timeoutMs: 45_000,
       });
     }
 

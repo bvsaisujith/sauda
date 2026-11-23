@@ -112,7 +112,7 @@ Everything external is resolved from environment at startup:
 | --- | --- | --- |
 | Database | `DATABASE_URL` | `providers/db.ts` |
 | LLM | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | `providers/llm.ts` |
-| Speech | `STT_BASE_URL`, `STT_API_KEY`, `STT_MODEL`, `STT_LANGUAGES` | `providers/stt.ts` |
+| Speech | `STT_BASE_URL`, `SARVAM_API_KEY` (or `STT_API_KEY`), `STT_MODEL`, `STT_MODE` | `providers/stt.ts` |
 | Payments | Reserved, not in V1 | `providers/payments.ts` seam |
 
 Changing a provider changes environment, not module code.

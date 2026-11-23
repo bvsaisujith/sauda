@@ -17,8 +17,9 @@ const envSchema = z
     LLM_MODEL: z.string().min(1).optional(),
     STT_BASE_URL: z.url().default('https://api.sarvam.ai'),
     STT_API_KEY: z.string().min(1).optional(),
-    STT_MODEL: z.string().min(1).default('saarika:v2.5'),
-    STT_LANGUAGES: z.string().default('hi,bn,ta,te,kn,ml,mr,gu,pa,or,as,ur,ne,sa,ks,sd,kok,mai,brx,doi,mni,sat'),
+    SARVAM_API_KEY: z.string().min(1).optional(),
+    STT_MODEL: z.string().min(1).default('saaras:v4'),
+    STT_MODE: z.enum(['transcribe', 'translate', 'verbatim', 'translit', 'codemix']).default('translate'),
   })
   .superRefine((value, context) => {
     if (!value.DATABASE_URL) {
@@ -44,11 +45,11 @@ const envSchema = z
           message: 'LLM_MODEL is required outside test mode',
         });
       }
-      if (!value.STT_API_KEY) {
+      if (!value.STT_API_KEY && !value.SARVAM_API_KEY) {
         context.addIssue({
           code: 'custom',
           path: ['STT_API_KEY'],
-          message: 'STT_API_KEY is required outside test mode',
+          message: 'STT_API_KEY or SARVAM_API_KEY is required outside test mode',
         });
       }
     }

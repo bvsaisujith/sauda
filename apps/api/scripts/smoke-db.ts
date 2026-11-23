@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   const movement = await prisma.stockMovement.create({
     data: {
       itemId: item.id,
-      batchId: item.batches[0]?.id,
+      batchId: item.batches[0]?.id ?? null,
       type: 'RECEIPT',
       quantity: 25,
       unitCost: 5200,
