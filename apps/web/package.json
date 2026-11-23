@@ -11,8 +11,8 @@
     "cap:add": "cap add android",
     "cap:sync": "npm run build && cap sync android",
     "android:open": "npm run cap:sync && cap open android",
-    "android:apk": "npm run cap:sync && cd android && gradlew.bat assembleDebug",
-    "android:apk:production": "npm run build -- --mode production && cap sync android && cd android && gradlew.bat assembleDebug"
+    "android:apk": "npm run build -w @sauda/shared && npm run cap:sync && cd android && gradlew.bat assembleDebug",
+    "android:apk:production": "npm run build -w @sauda/shared && npm run build -- --mode production && cap sync android && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",

@@ -71,6 +71,7 @@ build-apk:
     - sdkmanager --verbose "platform-tools" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
   script:
     - export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+    - npm run build -w @sauda/shared
     - npm run build -w @sauda/web
     - grep -R -q "api.sauda.thedeploymentlab.app" apps/web/dist/assets || (echo "Production API domain missing from web bundle"; exit 1)
     - npm run cap:sync -w @sauda/web
