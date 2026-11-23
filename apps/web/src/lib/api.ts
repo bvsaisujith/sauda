@@ -1,6 +1,7 @@
 import { authErrorSchema, sessionSchema, type Session } from '@sauda/shared';
+import { API_BASE_URL } from './api-config.js';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? '';
+const BASE_URL = API_BASE_URL || 'https://api.sauda.thedeploymentlab.app';
 
 let authToken: string | null = null;
 

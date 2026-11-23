@@ -3,17 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "dist/server.js",
+  "main": "dist/local-server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch src/local-server.ts",
     "build": "prisma generate && tsc -p tsconfig.json",
-    "start": "node dist/server.js",
+    "start": "node dist/local-server.js",
     "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json",
     "generate": "prisma generate",
     "migrate:deploy": "prisma migrate deploy",
     "migrate:status": "prisma migrate status",
     "smoke:db": "tsx scripts/smoke-db.ts",
     "smoke:auth": "tsx scripts/smoke-auth.ts",
+    "smoke:vercel": "tsx scripts/smoke-vercel-handler.ts",
+    "smoke:vercel:auth": "tsx scripts/smoke-vercel-auth.ts",
     "mic:test": "tsx scripts/mic-test.ts"
   },
   "dependencies": {

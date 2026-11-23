@@ -30,26 +30,12 @@ const envSchema = z
       });
     }
 
-    if (value.NODE_ENV !== 'test') {
-      if (!value.LLM_API_KEY) {
-        context.addIssue({
-          code: 'custom',
-          path: ['LLM_API_KEY'],
-          message: 'LLM_API_KEY is required outside test mode',
-        });
-      }
-      if (!value.LLM_MODEL) {
-        context.addIssue({
-          code: 'custom',
-          path: ['LLM_MODEL'],
-          message: 'LLM_MODEL is required outside test mode',
-        });
-      }
+    if (value.NODE_ENV === 'production') {
       if (!value.STT_API_KEY && !value.SARVAM_API_KEY) {
         context.addIssue({
           code: 'custom',
           path: ['STT_API_KEY'],
-          message: 'STT_API_KEY or SARVAM_API_KEY is required outside test mode',
+          message: 'STT_API_KEY or SARVAM_API_KEY is required in production',
         });
       }
     }
