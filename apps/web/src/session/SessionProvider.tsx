@@ -10,7 +10,7 @@
 import { api, ApiError, setAuthToken } from '../lib/api';
 import { tokenStore } from '../lib/token-store';
 
-export type AuthMode = 'setup' | 'unlock';
+export type AuthMode = 'signin' | 'signup';
 
 interface ShopSummary {
   id: string;
@@ -25,21 +25,26 @@ interface SessionState {
 }
 
 interface SessionContextValue extends SessionState {
-  setup(shopName: string, pin: string): Promise<void>;
-  unlock(pin: string): Promise<void>;
+  signIn(shopName: string, password: string): Promise<void>;
+  signUp(shopName: string, password: string): Promise<void>;
   logout(): Promise<void>;
-  requestUnlock(): void;
-  requestSetup(): void;
+  requestSignIn(): void;
+  requestSignUp(): void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
-const SIGNED_OUT: SessionState = { status: 'signed-out', mode: 'setup', shop: null, ownerId: null };
+const SIGNED_OUT: SessionState = {
+  status: 'signed-out',
+  mode: 'signin',
+  shop: null,
+  ownerId: null,
+};
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState>({
     status: 'loading',
-    mode: 'setup',
+    mode: 'signin',
     shop: null,
     ownerId: null,
   });
@@ -48,15 +53,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     void (async () => {
-      const [token, knownShop] = await Promise.all([
-        tokenStore().read(),
-        tokenStore().hasKnownShop(),
-      ]);
-      const mode: AuthMode = knownShop ? 'unlock' : 'setup';
+      const token = await tokenStore().read();
 
       if (!token) {
         if (!cancelled) {
-          setState({ ...SIGNED_OUT, mode });
+          setState({ ...SIGNED_OUT });
         }
         return;
       }
@@ -66,13 +67,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         const me = await api.me();
         if (!cancelled) {
-          setState({ status: 'signed-in', mode: 'unlock', shop: me.shop, ownerId: me.owner.id });
+          setState({ status: 'signed-in', mode: 'signin', shop: me.shop, ownerId: me.owner.id });
         }
       } catch {
         setAuthToken(null);
         await tokenStore().clear();
         if (!cancelled) {
-          setState({ ...SIGNED_OUT, mode: 'unlock' });
+          setState({ ...SIGNED_OUT });
         }
       }
     })();
@@ -82,28 +83,30 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const adopt = useCallback(async (session: { token: string; shop: ShopSummary; owner: { id: string } }) => {
-    await tokenStore().write(session.token);
-    await tokenStore().markKnownShop();
-    setAuthToken(session.token);
-    setState({
-      status: 'signed-in',
-      mode: 'unlock',
-      shop: session.shop,
-      ownerId: session.owner.id,
-    });
-  }, []);
+  const adopt = useCallback(
+    async (session: { token: string; shop: ShopSummary; owner: { id: string } }) => {
+      await tokenStore().write(session.token);
+      setAuthToken(session.token);
+      setState({
+        status: 'signed-in',
+        mode: 'signin',
+        shop: session.shop,
+        ownerId: session.owner.id,
+      });
+    },
+    [],
+  );
 
-  const setup = useCallback(
-    async (shopName: string, pin: string) => {
-      await adopt(await api.setup(shopName, pin));
+  const signIn = useCallback(
+    async (shopName: string, password: string) => {
+      await adopt(await api.signIn(shopName, password, deviceLabel()));
     },
     [adopt],
   );
 
-  const unlock = useCallback(
-    async (pin: string) => {
-      await adopt(await api.unlock(pin, deviceLabel()));
+  const signUp = useCallback(
+    async (shopName: string, password: string) => {
+      await adopt(await api.signUp(shopName, password));
     },
     [adopt],
   );
@@ -118,22 +121,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } finally {
       setAuthToken(null);
       await tokenStore().clear();
-      setState({ ...SIGNED_OUT, mode: 'unlock' });
+      setState({ ...SIGNED_OUT });
     }
   }, []);
 
-  const requestUnlock = useCallback(() => {
-    void tokenStore().markKnownShop();
-    setState((current) => ({ ...current, mode: 'unlock' }));
+  const requestSignIn = useCallback(() => {
+    setState((current) => ({ ...current, mode: 'signin' }));
   }, []);
 
-  const requestSetup = useCallback(() => {
-    setState((current) => ({ ...current, mode: 'setup' }));
+  const requestSignUp = useCallback(() => {
+    setState((current) => ({ ...current, mode: 'signup' }));
   }, []);
 
   const value = useMemo<SessionContextValue>(
-    () => ({ ...state, setup, unlock, logout, requestUnlock, requestSetup }),
-    [state, setup, unlock, logout, requestUnlock, requestSetup],
+    () => ({ ...state, signIn, signUp, logout, requestSignIn, requestSignUp }),
+    [state, signIn, signUp, logout, requestSignIn, requestSignUp],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

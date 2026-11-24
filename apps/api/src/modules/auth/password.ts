@@ -16,13 +16,13 @@ const MAX_MEMORY = 128 * 1024 * 1024;
 const ALGORITHM = 'scrypt';
 
 /**
- * PINs are low entropy by nature, so they are stretched with scrypt and a
- * per-owner random salt. The cost parameters travel with the hash so they can
- * be raised later without invalidating existing owners.
+ * Passwords are stretched with scrypt and a per-owner random salt. The cost
+ * parameters travel with the hash so they can be raised later without
+ * invalidating existing owners.
  */
-export async function hashPin(pin: string): Promise<string> {
+export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
-  const derived = await scryptAsync(pin.normalize('NFKC'), salt, KEY_LENGTH, {
+  const derived = await scryptAsync(password.normalize('NFKC'), salt, KEY_LENGTH, {
     N: COST,
     r: BLOCK_SIZE,
     p: PARALLELISM,
@@ -39,7 +39,7 @@ export async function hashPin(pin: string): Promise<string> {
   ].join('$');
 }
 
-export async function verifyPin(pin: string, stored: string): Promise<boolean> {
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const parts = stored.split('$');
 
   if (parts.length !== 6 || parts[0] !== ALGORITHM) {
@@ -64,7 +64,7 @@ export async function verifyPin(pin: string, stored: string): Promise<boolean> {
   }
 
   try {
-    const derived = await scryptAsync(pin.normalize('NFKC'), salt, expected.length, {
+    const derived = await scryptAsync(password.normalize('NFKC'), salt, expected.length, {
       N: cost,
       r: blockSize,
       p: parallelism,

@@ -12,10 +12,10 @@ export interface LockState {
 }
 
 /**
- * In-memory PIN throttle. One shop runs on one process, so a process-local
+ * In-memory sign-in throttle. One process serves the API, so a process-local
  * counter is enough; a restart clears it and that only ever favours the owner.
  */
-export class PinThrottle {
+export class LoginThrottle {
   private readonly buckets = new Map<string, Bucket>();
 
   constructor(private readonly now: () => number = Date.now) {}

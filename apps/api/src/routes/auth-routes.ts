@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { setupRequestSchema, unlockRequestSchema } from '@sauda/shared';
+import { signInRequestSchema, signUpRequestSchema } from '@sauda/shared';
 import { AuthError, authService, type AuthService } from '../modules/auth/public.js';
 
 function contextOrThrow(request: { auth?: { tokenId: string } }): { tokenId: string } {
@@ -13,16 +13,17 @@ function contextOrThrow(request: { auth?: { tokenId: string } }): { tokenId: str
 export function createPublicAuthRouter(service: AuthService = authService): Router {
   const router = Router();
 
-  router.post('/setup', async (request, response) => {
-    const body = setupRequestSchema.parse(request.body);
-    const session = await service.setup(body);
+  router.post('/signup', async (request, response) => {
+    const body = signUpRequestSchema.parse(request.body);
+    const session = await service.signUp(body);
     response.status(201).json(session);
   });
 
-  router.post('/unlock', async (request, response) => {
-    const body = unlockRequestSchema.parse(request.body);
-    const session = await service.unlock({
-      pin: body.pin,
+  router.post('/signin', async (request, response) => {
+    const body = signInRequestSchema.parse(request.body);
+    const session = await service.signIn({
+      shopName: body.shopName,
+      password: body.password,
       ...(body.deviceLabel === undefined ? {} : { deviceLabel: body.deviceLabel }),
     });
     response.json(session);

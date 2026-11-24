@@ -81,6 +81,21 @@ npm run smoke:db          # create, read and clean up a few rows
 Production runs `npm run migrate:deploy -w @sauda/api` on release. Money is stored as whole
 paise (`Decimal(14,0)`) and quantities as `Decimal(12,3)`; history tables are append-only.
 
+### Android
+
+The touch app is packaged for Android with Capacitor. The native project is in `apps/web/android`
+and uses package ID `com.sauda.shopmanager`.
+
+```powershell
+cd apps/web
+npm run android:apk       # sync web assets and build debug APK
+npm run android:open      # open the project in Android Studio
+```
+
+Set `VITE_API_BASE_URL=https://your-api-host.example` before building to point the APK at a
+deployed API. Leave it unset for same-origin/web development. The APK includes Internet and
+microphone permissions; the device will prompt before microphone recording.
+
 ### Voice transcription
 
 `POST /voice/transcribe` accepts a base64 audio clip (WAV, WebM, OGG, MP3, M4A, FLAC or
@@ -93,15 +108,18 @@ the 22 supported Indian languages comes back as English. Set `SARVAM_API_KEY` (o
 
 To test the whole path with a real microphone (requires `ffmpeg` on `PATH`):
 
-```bash
+```powershell
 cd apps/api
-SAUDA_PIN=your-pin npm run mic:test
-npm run mic:test -- --seconds 8 --device "Microphone Array (Realtek(R) Audio)"
-npm run mic:test -- --file sample.wav   # skip the microphone
+$env:SAUDA_SHOP_NAME='Sri Lakshmi Kirana'; $env:SAUDA_PASSWORD='kirana2026'; npm run mic:test
+npm run mic:test -- --seconds 8                 # fixed length instead of Enter
+npm run mic:test -- --mode transcribe           # original language, not English
+npm run mic:test -- --file sample.wav           # skip the microphone
 ```
 
-The script mints a device token with `SAUDA_PIN` (running first-run setup if the database is
-empty), posts the clip to the authenticated route, and prints the transcript.
+Recording starts immediately and stops when you press Enter (or after 30 seconds). The clip is
+then sent to the authenticated route and the transcript is printed. The script signs in with
+`SAUDA_SHOP_NAME` and `SAUDA_PASSWORD` to mint a device token. Set `SAUDA_TOKEN` instead to
+reuse an existing device token.
 
 ## Source repositories
 

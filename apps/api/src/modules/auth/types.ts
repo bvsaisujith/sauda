@@ -2,7 +2,7 @@ export interface LoginOwner {
   ownerId: string;
   shopId: string;
   shopName: string;
-  pinHash: string;
+  passwordHash: string;
 }
 
 export interface TokenRecord {
@@ -23,12 +23,12 @@ export interface AuditRecord {
 }
 
 export interface AuthStore {
-  hasOwner(): Promise<boolean>;
   createShopWithOwner(input: {
     shopName: string;
-    pinHash: string;
+    loginKey: string;
+    passwordHash: string;
   }): Promise<{ shopId: string; ownerId: string }>;
-  findOwnerForLogin(): Promise<LoginOwner | null>;
+  findOwnerForLogin(loginKey: string): Promise<LoginOwner | null>;
   insertToken(input: {
     ownerId: string;
     tokenHash: string;
@@ -61,15 +61,23 @@ export interface SessionInfo {
 }
 
 export type AuthErrorCode =
-  | 'setup-required'
-  | 'already-setup'
-  | 'invalid-pin'
+  | 'shop-exists'
+  | 'invalid-credentials'
   | 'locked'
   | 'unauthorized';
 
 export interface AuthService {
-  setup(input: { shopName: string; pin: string; deviceLabel?: string }): Promise<Session>;
-  unlock(input: { pin: string; deviceLabel?: string }): Promise<Session>;
+  signUp(input: { shopName: string; password: string; deviceLabel?: string }): Promise<Session>;
+  signIn(input: { shopName: string; password: string; deviceLabel?: string }): Promise<Session>;
   verifyToken(token: string): Promise<AuthContext | null>;
   logout(tokenId: string): Promise<void>;
+}
+
+/**
+ * Shops are matched on a trimmed, lowercased key so "Sri Lakshmi Kirana" and
+ * "sri lakshmi kirana" reach the same account, while the owner still sees the
+ * name the way they typed it.
+ */
+export function loginKeyFor(shopName: string): string {
+  return shopName.trim().toLowerCase();
 }

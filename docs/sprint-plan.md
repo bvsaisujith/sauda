@@ -36,7 +36,7 @@ Sales bills, purchase bills, parties, GST, purchasing suggestions, repacking and
 ### Demo definition of done
 
 - A fresh APK installs on a phone that has never seen the app.
-- PIN setup and unlock work.
+- Shop sign-up and sign-in work.
 - The owner creates an item and sets its price by touch.
 - The owner adds stock by touch.
 - The owner speaks an item and price instruction in English; the preview is read back and approved.

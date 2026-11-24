@@ -66,8 +66,8 @@ async function postJson(path: string, body: unknown): Promise<Response> {
 }
 
 export const api = {
-  async setup(shopName: string, pin: string): Promise<Session> {
-    const response = await postJson('/auth/setup', { shopName, pin });
+  async signUp(shopName: string, password: string): Promise<Session> {
+    const response = await postJson('/auth/signup', { shopName, password });
 
     if (!response.ok) {
       throw await failure(response);
@@ -76,9 +76,10 @@ export const api = {
     return sessionSchema.parse(await response.json());
   },
 
-  async unlock(pin: string, deviceLabel?: string): Promise<Session> {
-    const response = await postJson('/auth/unlock', {
-      pin,
+  async signIn(shopName: string, password: string, deviceLabel?: string): Promise<Session> {
+    const response = await postJson('/auth/signin', {
+      shopName,
+      password,
       ...(deviceLabel === undefined ? {} : { deviceLabel }),
     });
 

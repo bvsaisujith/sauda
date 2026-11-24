@@ -1,34 +1,32 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 import { db } from '../../db.js';
-import { OwnerExistsError } from './owner-exists-error.js';
+import { ShopExistsError } from './shop-exists-error.js';
 import type { AuditRecord, AuthStore, LoginOwner, TokenRecord } from './types.js';
 
 export function createPrismaAuthStore(): AuthStore {
   return {
-    async hasOwner(): Promise<boolean> {
-      return (await db().owner.count()) > 0;
-    },
-
     async createShopWithOwner(input): Promise<{ shopId: string; ownerId: string }> {
       try {
         return await db().$transaction(async (tx) => {
-          const shop = await tx.shop.create({ data: { name: input.shopName } });
+          const shop = await tx.shop.create({
+            data: { name: input.shopName, loginKey: input.loginKey },
+          });
           const owner = await tx.owner.create({
-            data: { shopId: shop.id, pinHash: input.pinHash },
+            data: { shopId: shop.id, passwordHash: input.passwordHash },
           });
           return { shopId: shop.id, ownerId: owner.id };
         });
       } catch (error) {
         if ((error as { code?: string }).code === 'P2002') {
-          throw new OwnerExistsError();
+          throw new ShopExistsError();
         }
         throw error;
       }
     },
 
-    async findOwnerForLogin(): Promise<LoginOwner | null> {
+    async findOwnerForLogin(loginKey: string): Promise<LoginOwner | null> {
       const owner = await db().owner.findFirst({
-        orderBy: { createdAt: 'asc' },
+        where: { shop: { loginKey } },
         include: { shop: { select: { id: true, name: true } } },
       });
 
@@ -40,7 +38,7 @@ export function createPrismaAuthStore(): AuthStore {
         ownerId: owner.id,
         shopId: owner.shopId,
         shopName: owner.shop.name,
-        pinHash: owner.pinHash,
+        passwordHash: owner.passwordHash,
       };
     },
 

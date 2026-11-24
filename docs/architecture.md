@@ -35,7 +35,7 @@ flowchart TD
 
 | Module | Responsibility |
 | --- | --- |
-| `auth` | Owner PIN, device tokens and revocation |
+| `auth` | Shop accounts, salted password hashing, device tokens and revocation |
 | `items` | Items, units, pack size, prices, HSN and GST rate |
 | `stock` | Append-only batch movements, FIFO layers and stock queries |
 | `repack` | Consuming base stock, producing packs, wastage and reversal |
@@ -71,7 +71,7 @@ apps/api/src/modules/<name>/
 - `apps/api/src/providers/` is the only vendor integration layer. Domain modules receive vendor-neutral LLM and STT interfaces.
 - OpenAI-compatible chat calls and Sarvam-compatible multipart transcription are assembled from environment variables.
 - Provider API keys never enter shared DTOs, web code or responses.
-- Missing provider credentials fail environment validation outside test mode; tests inject mock fetch implementations.
+- Missing provider credentials fail environment validation in production; in development and test they fail when the provider is first used, so voice-only runs and tests need no LLM key.
 
 Two checks enforce this, both running in `npm run check` and in the `verify` CI job:
 
@@ -135,11 +135,13 @@ Changing a provider changes environment, not module code.
 
 ## Authentication
 
-- Owner sets a six-digit PIN on first run.
-- The server issues a device token bound to that device.
-- The app stores the token in secure storage; the PIN unlocks it locally.
+- A shop signs up with a shop name and an alphanumeric password; the pair identifies the shop and its data.
+- Passwords are hashed with scrypt and a per-shop random salt. The plain password is never stored or logged.
+- Shop names are matched on a trimmed, lowercased key so case and padding do not split one shop into two.
+- The server issues a device token on sign-up or sign-in.
+- The app stores the token in secure storage and sends it with every REST call.
 - Tokens can be revoked server-side.
-- REST and agent calls require the token.
+- Five failed sign-ins lock that shop for fifteen minutes; a wrong shop name and a wrong password return the same message.
 
 ## Deployment for the demo
 

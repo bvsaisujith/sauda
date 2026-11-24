@@ -1,16 +1,27 @@
 import { z } from 'zod';
 
-export const pinSchema = z
+/**
+ * Shop owners type this on a phone, so the rule stays simple: 8 to 64
+ * characters with at least one letter and one digit. That keeps out the
+ * all-digit PINs and plain words that scrypt would otherwise be stretching.
+ */
+export const passwordSchema = z
   .string()
-  .regex(/^\d{4,8}$/, 'PIN must be 4 to 8 digits');
+  .min(8, 'Password must be at least 8 characters')
+  .max(64, 'Password must be 64 characters or fewer')
+  .regex(/[A-Za-z]/, 'Password must include at least one letter')
+  .regex(/\d/, 'Password must include at least one digit');
 
-export const setupRequestSchema = z.object({
-  shopName: z.string().trim().min(1).max(80),
-  pin: pinSchema,
+export const shopNameSchema = z.string().trim().min(1, 'Enter your shop name').max(80);
+
+export const signUpRequestSchema = z.object({
+  shopName: shopNameSchema,
+  password: passwordSchema,
 });
 
-export const unlockRequestSchema = z.object({
-  pin: pinSchema,
+export const signInRequestSchema = z.object({
+  shopName: shopNameSchema,
+  password: z.string().min(1, 'Enter your password').max(64),
   deviceLabel: z.string().trim().min(1).max(80).optional(),
 });
 
@@ -31,9 +42,8 @@ export const sessionInfoSchema = sessionSchema.omit({ token: true, expiresAt: tr
 export const authErrorSchema = z.object({
   code: z.enum([
     'validation-failed',
-    'setup-required',
-    'already-setup',
-    'invalid-pin',
+    'shop-exists',
+    'invalid-credentials',
     'locked',
     'unauthorized',
   ]),
@@ -41,8 +51,8 @@ export const authErrorSchema = z.object({
   retryAfterSeconds: z.number().int().positive().optional(),
 });
 
-export type SetupRequest = z.infer<typeof setupRequestSchema>;
-export type UnlockRequest = z.infer<typeof unlockRequestSchema>;
+export type SignUpRequest = z.infer<typeof signUpRequestSchema>;
+export type SignInRequest = z.infer<typeof signInRequestSchema>;
 export type Session = z.infer<typeof sessionSchema>;
 export type SessionInfo = z.infer<typeof sessionInfoSchema>;
 export type AuthErrorBody = z.infer<typeof authErrorSchema>;

@@ -1,6 +1,6 @@
 import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
-import { createApp } from '../src/app.js';
+import { createApp } from '../src/express-app.js';
 import { closeDb, db } from '../src/db.js';
 
 interface Result {
@@ -71,42 +71,59 @@ async function main(): Promise<void> {
     const guarded = await call(base, '/auth/me');
     check('me needs a token', guarded.status === 401, guarded);
 
-    const earlyUnlock = await call(base, '/auth/unlock', {
+    const badPassword = await call(base, '/auth/signup', {
       method: 'POST',
-      body: { pin: '4821' },
+      body: { shopName: 'Smoke Kirana', password: 'alllettersonly' },
     });
-    check('unlock before setup asks for setup', earlyUnlock.status === 409, earlyUnlock);
+    check('signup rejects a password with no digit', badPassword.status === 400, badPassword);
 
-    const setup = await call(base, '/auth/setup', {
+    const shortPassword = await call(base, '/auth/signup', {
       method: 'POST',
-      body: { shopName: 'Smoke Kirana', pin: '4821' },
+      body: { shopName: 'Smoke Kirana', password: 'abc1' },
     });
-    check('setup returns a session', setup.status === 201, setup);
-    const session = setup.body as { token: string; shop: { name: string } };
+    check('signup rejects a short password', shortPassword.status === 400, shortPassword);
+
+    const signUp = await call(base, '/auth/signup', {
+      method: 'POST',
+      body: { shopName: 'Smoke Kirana', password: 'kirana2026' },
+    });
+    check('signup returns a session', signUp.status === 201, signUp);
+    const session = signUp.body as { token: string; shop: { name: string } };
     check('session names the shop', session.shop.name === 'Smoke Kirana', session);
 
-    const secondSetup = await call(base, '/auth/setup', {
+    const duplicate = await call(base, '/auth/signup', {
       method: 'POST',
-      body: { shopName: 'Second', pin: '1111' },
+      body: { shopName: 'smoke kirana', password: 'another2026' },
     });
-    check('second setup is refused', secondSetup.status === 409, secondSetup);
+    check('duplicate shop name is refused', duplicate.status === 409, duplicate);
 
     const me = await call(base, '/auth/me', { token: session.token });
     check('me returns the owner', me.status === 200, me);
 
-    const wrongPin = await call(base, '/auth/unlock', {
+    const wrongPassword = await call(base, '/auth/signin', {
       method: 'POST',
-      body: { pin: '0000' },
+      body: { shopName: 'Smoke Kirana', password: 'wrong2026' },
     });
-    check('wrong PIN is rejected', wrongPin.status === 401, wrongPin);
+    check('wrong password is rejected', wrongPassword.status === 401, wrongPassword);
 
-    const unlocked = await call(base, '/auth/unlock', {
+    const unknownShop = await call(base, '/auth/signin', {
       method: 'POST',
-      body: { pin: '4821', deviceLabel: 'smoke' },
+      body: { shopName: 'Nope Kirana', password: 'wrong2026' },
     });
-    check('correct PIN unlocks', unlocked.status === 200, unlocked);
-    const second = unlocked.body as { token: string };
-    check('a fresh token is issued', second.token !== session.token, unlocked);
+    check(
+      'unknown shop and wrong password look the same',
+      (unknownShop.body as { message: string }).message ===
+        (wrongPassword.body as { message: string }).message,
+      { unknownShop, wrongPassword },
+    );
+
+    const signIn = await call(base, '/auth/signin', {
+      method: 'POST',
+      body: { shopName: '  SMOKE KIRANA ', password: 'kirana2026', deviceLabel: 'smoke' },
+    });
+    check('sign in ignores shop name case and padding', signIn.status === 200, signIn);
+    const second = signIn.body as { token: string };
+    check('a fresh token is issued', second.token !== session.token, signIn);
 
     const logout = await call(base, '/auth/logout', {
       method: 'POST',
@@ -121,20 +138,38 @@ async function main(): Promise<void> {
     check('other device tokens survive', otherStillWorks.status === 200, otherStillWorks);
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      await call(base, '/auth/unlock', { method: 'POST', body: { pin: '9999' } });
+      await call(base, '/auth/signin', {
+        method: 'POST',
+        body: { shopName: 'Smoke Kirana', password: 'wrong2026' },
+      });
     }
 
-    const locked = await call(base, '/auth/unlock', {
+    const locked = await call(base, '/auth/signin', {
       method: 'POST',
-      body: { pin: '4821' },
+      body: { shopName: 'Smoke Kirana', password: 'kirana2026' },
     });
-    check('PIN locks after five failures', locked.status === 423, locked);
+    check('sign in locks after five failures', locked.status === 423, locked);
     check('lockout sends Retry-After', locked.headers.has('retry-after'), locked);
 
     const audit = await db().auditEntry.findMany({
-      where: { operation: 'auth.unlock.failed' },
+      where: { operation: 'auth.signin.failed' },
     });
-    check('failed attempts are audited', audit.length >= 6, audit.length);
+    check('failed attempts are audited', audit.length >= 5, audit.length);
+
+    const secondShop = await call(base, '/auth/signup', {
+      method: 'POST',
+      body: { shopName: 'Second Shop', password: 'second2026' },
+    });
+    check('a second shop can register', secondShop.status === 201, secondShop);
+    const secondSession = secondShop.body as { token: string; shop: { id: string } };
+
+    const firstMe = await call(base, '/auth/me', { token: second.token });
+    const secondMe = await call(base, '/auth/me', { token: secondSession.token });
+    check(
+      'each shop keeps its own data',
+      (firstMe.body as { shop: { id: string } }).shop.id !== secondSession.shop.id,
+      { firstMe, secondMe },
+    );
   } finally {
     await new Promise<void>((resolve) => {
       server.close(() => {

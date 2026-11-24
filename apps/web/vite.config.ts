@@ -13,6 +13,7 @@ export default defineConfig({
     proxy: {
       '/auth': API_TARGET,
       '/health': API_TARGET,
+      '/voice': API_TARGET,
     },
   },
 });

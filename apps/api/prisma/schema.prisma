@@ -77,6 +77,7 @@ enum ProposalStatus {
 model Shop {
   id               String   @id @default(cuid())
   name             String
+  loginKey         String   @unique
   deadStockDays    Int      @default(60)
   festivalLeadDays Int      @default(15)
   createdAt        DateTime @default(now())
@@ -89,8 +90,8 @@ model Owner {
   id        String   @id @default(cuid())
   shopId    String
   shop      Shop     @relation(fields: [shopId], references: [id])
-  pinHash   String
-  createdAt DateTime @default(now())
+  passwordHash String
+  createdAt    DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   deviceTokens DeviceToken[]

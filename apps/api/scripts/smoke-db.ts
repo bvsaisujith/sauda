@@ -6,7 +6,8 @@ async function main(): Promise<void> {
   const shop = await prisma.shop.create({
     data: {
       name: `Smoke ${Date.now()}`,
-      owners: { create: { pinHash: 'not-a-real-hash' } },
+      loginKey: `smoke-${Date.now()}`,
+      owners: { create: { passwordHash: 'not-a-real-hash' } },
       },
   });
 
@@ -88,7 +89,7 @@ async function main(): Promise<void> {
   await prisma.stockBatch.deleteMany({ where: { itemId: item.id } });
   await prisma.item.delete({ where: { id: item.id } });
   await prisma.owner.deleteMany({ where: { shopId: shop.id } });
-  await prisma.shop.delete({ where: { id: shop.id } });
+  await prisma.shop.deleteMany({ where: { id: shop.id } });
 }
 
 main()

@@ -1,9 +1,8 @@
 import type { AuthErrorCode } from './types.js';
 
 const DEFAULT_STATUS: Record<AuthErrorCode, number> = {
-  'setup-required': 409,
-  'already-setup': 409,
-  'invalid-pin': 401,
+  'shop-exists': 409,
+  'invalid-credentials': 401,
   locked: 423,
   unauthorized: 401,
 };

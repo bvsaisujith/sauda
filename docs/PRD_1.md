@@ -70,7 +70,7 @@ Payment aggregators, GST filing and e-invoicing, neighbouring-shop joint buying,
 | Product name | Sauda |
 | Architecture | Modular monolith, one deployable API |
 | Module access | Each module exposes `public.ts`; deeper imports fail CI |
-| Shop and accounts | One shop, one owner account, PIN plus device token |
+| Shop and accounts | Many shops, each with its own shop name, password and device tokens |
 | UI language | English only |
 | Voice input | 22 Indian languages, Sarvam auto-detect |
 | Purchase flow | Draft or purchase order, then goods receipt |
@@ -101,9 +101,16 @@ Payment aggregators, GST filing and e-invoicing, neighbouring-shop joint buying,
 
 ### 4.1 Owner access
 
-- First run sets a PIN on the device.
-- The device receives a token; the PIN is required again after the configured lock period.
-- The token can be revoked from the server.
+- A shop registers once with a shop name and an alphanumeric password.
+- The password is 8 to 64 characters with at least one letter and one digit.
+- Passwords are stored salted and hashed with scrypt; the plain password is never stored or logged.
+- Shop names are matched without case or surrounding spaces, so "Sri Lakshmi Kirana" and "sri lakshmi kirana" reach the same shop.
+- Each shop keeps its own items, stock, bills and audit trail; one shop never sees another shop's data.
+- Signing in issues a device token that expires after the configured period.
+- Five failed sign-ins lock that shop for fifteen minutes; the lockout is per shop, not per device.
+- A shop name that is already registered is refused at sign-up with a message that points to sign-in.
+- A wrong shop name and a wrong password return the same message, so the form never reveals which shops exist.
+- The token can be revoked from the server and is stored in secure device storage on Android.
 - No customer, helper or public accounts in v1.
 
 ### 4.2 Items, units and prices

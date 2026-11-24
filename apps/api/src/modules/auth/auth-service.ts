@@ -1,8 +1,9 @@
 import { AuthError } from './auth-errors.js';
-import { OwnerExistsError } from './owner-exists-error.js';
-import { hashPin, verifyPin } from './pin.js';
-import { PinThrottle } from './throttle.js';
+import { hashPassword, verifyPassword } from './password.js';
+import { LoginThrottle } from './throttle.js';
 import { generateToken, hashToken, looksLikeToken } from './tokens.js';
+import { ShopExistsError } from './shop-exists-error.js';
+import { loginKeyFor } from './types.js';
 import type { AuthContext, AuthService, AuthStore, Session, TokenRecord } from './types.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -11,13 +12,13 @@ const DEFAULT_TOKEN_TTL_DAYS = 180;
 export interface AuthServiceOptions {
   now?: () => Date;
   tokenTtlDays?: number;
-  throttle?: PinThrottle;
+  throttle?: LoginThrottle;
 }
 
 export function createAuthService(store: AuthStore, options: AuthServiceOptions = {}): AuthService {
   const now = options.now ?? (() => new Date());
   const tokenTtlDays = options.tokenTtlDays ?? DEFAULT_TOKEN_TTL_DAYS;
-  const throttle = options.throttle ?? new PinThrottle(() => now().getTime());
+  const throttle = options.throttle ?? new LoginThrottle(() => now().getTime());
 
   async function issueToken(input: {
     ownerId: string;
@@ -59,20 +60,21 @@ export function createAuthService(store: AuthStore, options: AuthServiceOptions 
   }
 
   return {
-    async setup(input) {
-      if (await store.hasOwner()) {
-        throw new AuthError('already-setup', 'This shop already has an owner');
-      }
-
-      const pinHash = await hashPin(input.pin);
+    async signUp(input) {
+      const loginKey = loginKeyFor(input.shopName);
+      const passwordHash = await hashPassword(input.password);
 
       let created: { shopId: string; ownerId: string };
 
       try {
-        created = await store.createShopWithOwner({ shopName: input.shopName, pinHash });
+        created = await store.createShopWithOwner({
+          shopName: input.shopName,
+          loginKey,
+          passwordHash,
+        });
       } catch (error) {
-        if (error instanceof OwnerExistsError) {
-          throw new AuthError('already-setup', 'This shop already has an owner');
+        if (error instanceof ShopExistsError) {
+          throw new AuthError('shop-exists', 'That shop name is already registered. Sign in instead.');
         }
         throw error;
       }
@@ -80,7 +82,7 @@ export function createAuthService(store: AuthStore, options: AuthServiceOptions 
       await store.recordAudit({
         shopId: created.shopId,
         ownerId: created.ownerId,
-        operation: 'auth.setup',
+        operation: 'auth.signup',
         entityId: created.ownerId,
       });
 
@@ -92,11 +94,27 @@ export function createAuthService(store: AuthStore, options: AuthServiceOptions 
       });
     },
 
-    async unlock(input) {
-      const owner = await store.findOwnerForLogin();
+    async signIn(input) {
+      const loginKey = loginKeyFor(input.shopName);
+
+      // Unknown shops are throttled on the attempted name so repeated guessing
+      // from one device is still rate limited.
+      const owner = await store.findOwnerForLogin(loginKey);
 
       if (!owner) {
-        throw new AuthError('setup-required', 'No owner exists yet; set up a PIN first');
+        throttle.recordFailure(loginKey);
+
+        const lock = throttle.check(loginKey);
+
+        if (lock.locked) {
+          throw new AuthError(
+            'locked',
+            'Too many sign-in attempts; try again later',
+            lock.retryAfterSeconds,
+          );
+        }
+
+        throw new AuthError('invalid-credentials', 'Shop name or password is incorrect');
       }
 
       const lock = throttle.check(owner.ownerId);
@@ -104,20 +122,20 @@ export function createAuthService(store: AuthStore, options: AuthServiceOptions 
       if (lock.locked) {
         throw new AuthError(
           'locked',
-          'Too many incorrect PIN attempts; try again later',
+          'Too many sign-in attempts; try again later',
           lock.retryAfterSeconds,
         );
       }
 
-      if (!(await verifyPin(input.pin, owner.pinHash))) {
+      if (!(await verifyPassword(input.password, owner.passwordHash))) {
         throttle.recordFailure(owner.ownerId);
         await store.recordAudit({
           shopId: owner.shopId,
           ownerId: owner.ownerId,
-          operation: 'auth.unlock.failed',
+          operation: 'auth.signin.failed',
           entityId: owner.ownerId,
         });
-        throw new AuthError('invalid-pin', 'PIN is incorrect');
+        throw new AuthError('invalid-credentials', 'Shop name or password is incorrect');
       }
 
       throttle.reset(owner.ownerId);

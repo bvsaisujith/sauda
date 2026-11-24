@@ -1,7 +1,12 @@
-const base = 'https://sauda.thedeploymentlab.app';
-const pin = String(process.env.SAUDA_DEPLOY_PIN ?? '4821');
+const base = process.env.SAUDA_API_URL ?? 'https://api.sauda.thedeploymentlab.app';
+const shopName = process.env.SAUDA_SHOP_NAME?.trim() ?? 'Sauda Deploy Smoke';
+const password = process.env.SAUDA_PASSWORD?.trim() ?? 'deploy2026';
 
-async function call(path: string, body?: unknown, token?: string): Promise<{ status: number; body: unknown }> {
+async function call(
+  path: string,
+  body?: unknown,
+  token?: string,
+): Promise<{ status: number; body: unknown }> {
   const response = await fetch(base + path, {
     method: body === undefined ? 'GET' : 'POST',
     headers: {
@@ -12,20 +17,48 @@ async function call(path: string, body?: unknown, token?: string): Promise<{ sta
   });
 
   const text = await response.text();
-  const parsed: unknown = (() => {
-    try {
-      return JSON.parse(text) as unknown;
-    } catch {
-      return text;
-    }
-  })();
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    parsed = text;
+  }
+
   return { status: response.status, body: parsed };
 }
 
-const unlock = await call('/auth/unlock', { pin, deviceLabel: 'deploy-smoke' });
-console.log(JSON.stringify({ unlockStatus: unlock.status, unlocked: unlock.status === 200 }));
-
-if (unlock.status === 409) {
-  const setup = await call('/auth/setup', { shopName: 'Sauda Deploy Smoke', pin });
-  console.log(JSON.stringify({ setupStatus: setup.status, setupSucceeded: setup.status === 201 }));
+function check(label: string, condition: boolean, detail: unknown): void {
+  if (!condition) {
+    throw new Error(`${label} failed: ${JSON.stringify(detail)}`);
+  }
+  console.log(`ok  ${label}`);
 }
+
+async function main(): Promise<void> {
+  const health = await call('/health');
+  check('health is live', health.status === 200, health);
+
+  const signIn = await call('/auth/signin', { shopName, password });
+
+  if (signIn.status === 200) {
+    check('sign in works', true, {});
+    return;
+  }
+
+  check('sign in reached the auth layer', signIn.status >= 400, signIn);
+
+  const signUp = await call('/auth/signup', { shopName, password });
+
+  if (signUp.status === 201) {
+    check('sign up works', true, {});
+    return;
+  }
+
+  check('sign up was refused for a stated reason', signUp.status >= 400, signUp);
+}
+
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});
