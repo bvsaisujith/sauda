@@ -6,13 +6,14 @@ coverage/
 .env
 .env.*
 !.env.example
+.vercel
 
 apps/web/android/
 apps/web/ios/
 apps/web/.capacitor/
 
+dast-reports/
+
 .DS_Store
 Thumbs.db
 *.log
-
-.vercel

@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { AuthError } from '../modules/auth/public.js';
+import { ItemError } from '../modules/items/public.js';
+import { StockError } from '../modules/stock/public.js';
 import { HttpError } from './http-error.js';
 import { ProviderHttpError } from '../providers/llm.js';
 
@@ -33,6 +35,11 @@ export function errorHandler(
         ? {}
         : { retryAfterSeconds: error.retryAfterSeconds }),
     });
+    return;
+  }
+
+  if (error instanceof ItemError || error instanceof StockError) {
+    response.status(error.status).json({ code: error.code, message: error.message });
     return;
   }
 

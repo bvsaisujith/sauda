@@ -81,6 +81,35 @@ npm run smoke:db          # create, read and clean up a few rows
 Production runs `npm run migrate:deploy -w @sauda/api` on release. Money is stored as whole
 paise (`Decimal(14,0)`) and quantities as `Decimal(12,3)`; history tables are append-only.
 
+### Web build
+
+The same React app is deployed on Vercel as `sauda-dash` and served at
+`https://dash.sauda.thedeploymentlab.app`. It talks to the API through `VITE_API_BASE_URL`
+(a Vercel project variable, with `apps/web/.env.production` as the committed fallback).
+
+```powershell
+cd apps/web
+npm run build             # production bundle in apps/web/dist
+npm run preview           # serve the built bundle locally
+```
+
+`apps/web/vercel.json` owns the build/install commands, the SPA rewrite and the security
+headers. Vercel's project settings pin the root directory to `apps/web` and allow source files
+outside it, so the workspace packages resolve during the build.
+
+### Security scanning
+
+The pipeline is split under `.gitlab/ci/`: `quality.yml`, `security.yml` (Semgrep SAST and
+secret detection), `build.yml` (APK artifact named `sauda`) and `dast.yml`.
+
+`dast.yml` runs OWASP ZAP baseline scans against the deployed web app and API on the default
+branch. `tools/dast/zap_gate.py` fails the job when a Medium or High alert is not listed in
+`.zap/rules.json` with a written reason, and both reports are kept as artifacts.
+
+```powershell
+python tools/dast/zap_gate.py dast-reports/zap-web.json --target https://dash.sauda.thedeploymentlab.app
+```
+
 ### Android
 
 The touch app is packaged for Android with Capacitor. The native project is in `apps/web/android`

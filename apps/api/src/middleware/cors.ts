@@ -5,8 +5,11 @@ export function cors(request: Request, response: Response, next: NextFunction): 
   const origin = request.header('origin');
   const allowed = new Set([
     env.APP_ORIGIN,
+    'https://dash.sauda.thedeploymentlab.app',
+    'https://sauda-dash.vercel.app',
     'https://localhost',
     'http://localhost',
+    'capacitor://localhost',
     'http://127.0.0.1:5174',
     'https://api.sauda.thedeploymentlab.app',
   ]);

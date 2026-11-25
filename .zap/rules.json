@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "comment": "Sauda's DAST acceptance rules. Medium and High findings fail the pipeline unless the alert id appears under allow with a written reason.",
+  "failOnRisk": ["High", "Medium"],
+  "minSites": 1,
+  "allow": {}
+}

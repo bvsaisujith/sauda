@@ -1,7 +1,25 @@
-import { authErrorSchema, sessionSchema, type Session } from '@sauda/shared';
+import {
+  apiErrorSchema,
+  itemListSchema,
+  itemWithStockSchema,
+  sessionSchema,
+  stockMovementListSchema,
+  stockWriteResultSchema,
+  type ItemInput,
+  type ItemUpdate,
+  type ItemWithStockDto,
+  type Session,
+  type StockAdjustRequest,
+  type StockMovementDto,
+  type StockReceiveRequest,
+  type StockWriteResult,
+} from '@sauda/shared';
+import { z } from 'zod';
 import { API_BASE_URL } from './api-config.js';
 
 const BASE_URL = API_BASE_URL || 'https://api.sauda.thedeploymentlab.app';
+
+const itemEnvelopeSchema = z.object({ item: itemWithStockSchema });
 
 let authToken: string | null = null;
 
@@ -47,7 +65,7 @@ async function failure(response: Response): Promise<ApiError> {
     body = null;
   }
 
-  const parsed = authErrorSchema.safeParse(body);
+  const parsed = apiErrorSchema.safeParse(body);
 
   if (parsed.success) {
     return new ApiError(
@@ -61,33 +79,39 @@ async function failure(response: Response): Promise<ApiError> {
   return new ApiError(response.status, 'request-failed', 'Something went wrong');
 }
 
-async function postJson(path: string, body: unknown): Promise<Response> {
-  return request(path, { method: 'POST', body: JSON.stringify(body) });
+async function json<T>(response: Response, schema: z.ZodType<T>): Promise<T> {
+  if (!response.ok) {
+    throw await failure(response);
+  }
+
+  return schema.parse(await response.json());
+}
+
+async function send(
+  path: string,
+  method: 'POST' | 'PATCH' | 'DELETE',
+  body?: unknown,
+): Promise<Response> {
+  return request(path, {
+    method,
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
 }
 
 export const api = {
   async signUp(shopName: string, password: string): Promise<Session> {
-    const response = await postJson('/auth/signup', { shopName, password });
-
-    if (!response.ok) {
-      throw await failure(response);
-    }
-
-    return sessionSchema.parse(await response.json());
+    return json(await send('/auth/signup', 'POST', { shopName, password }), sessionSchema);
   },
 
   async signIn(shopName: string, password: string, deviceLabel?: string): Promise<Session> {
-    const response = await postJson('/auth/signin', {
-      shopName,
-      password,
-      ...(deviceLabel === undefined ? {} : { deviceLabel }),
-    });
-
-    if (!response.ok) {
-      throw await failure(response);
-    }
-
-    return sessionSchema.parse(await response.json());
+    return json(
+      await send('/auth/signin', 'POST', {
+        shopName,
+        password,
+        ...(deviceLabel === undefined ? {} : { deviceLabel }),
+      }),
+      sessionSchema,
+    );
   },
 
   async me(): Promise<{ shop: { id: string; name: string }; owner: { id: string } }> {
@@ -101,10 +125,47 @@ export const api = {
   },
 
   async logout(): Promise<void> {
-    const response = await request('/auth/logout', { method: 'POST' });
+    const response = await send('/auth/logout', 'POST');
 
     if (!response.ok && response.status !== 401) {
       throw await failure(response);
     }
+  },
+
+  async listItems(): Promise<ItemWithStockDto[]> {
+    return json(await request('/items'), itemListSchema).then((body) => body.items);
+  },
+
+  async createItem(input: ItemInput): Promise<ItemWithStockDto> {
+    return json(await send('/items', 'POST', input), itemEnvelopeSchema).then((body) => body.item);
+  },
+
+  async updateItem(itemId: string, patch: ItemUpdate): Promise<ItemWithStockDto> {
+    return json(await send(`/items/${itemId}`, 'PATCH', patch), itemEnvelopeSchema).then(
+      (body) => body.item,
+    );
+  },
+
+  async archiveItem(itemId: string): Promise<void> {
+    const response = await send(`/items/${itemId}`, 'DELETE');
+
+    if (!response.ok) {
+      throw await failure(response);
+    }
+  },
+
+  async listMovements(itemId: string): Promise<StockMovementDto[]> {
+    return json(
+      await request(`/stock/movements?itemId=${encodeURIComponent(itemId)}`),
+      stockMovementListSchema,
+    ).then((body) => body.movements);
+  },
+
+  async receiveStock(input: StockReceiveRequest): Promise<StockWriteResult> {
+    return json(await send('/stock/receive', 'POST', input), stockWriteResultSchema);
+  },
+
+  async adjustStock(input: StockAdjustRequest): Promise<StockWriteResult> {
+    return json(await send('/stock/adjust', 'POST', input), stockWriteResultSchema);
   },
 };

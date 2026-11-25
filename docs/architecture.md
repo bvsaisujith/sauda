@@ -6,7 +6,7 @@ Part of [PRD_1.md](PRD_1.md). One Express deployable holds the domain modules. T
 
 ```mermaid
 flowchart TD
-    subgraph App[Android app: React + Vite in Capacitor]
+    subgraph App[Apps: one React + Vite build, served on the web and inside Capacitor]
         T[Touch UI]
         V[Voice: mic, read-back, approve]
     end
@@ -94,10 +94,12 @@ sauda/
       src/
         modules/          domain modules, each with public.ts
         routes/           thin Express wrappers
-        agent/            tool registry and model loop
+        middleware/       auth, CORS, actor context and error mapping
         providers/        LLM, STT and database adapters
-        db/               Prisma client
-      prisma/
+        express-app.ts    app factory shared by Vercel and local runs
+        local-server.ts   the listener used in development
+        db.ts             the one Prisma client
+      prisma/             schema and migrations
   packages/
     shared/               Zod contracts, DTOs and tool definitions
   deploy/                 Oracle configuration, reverse proxy and services
@@ -124,6 +126,7 @@ Changing a provider changes environment, not module code.
 - Read tools run immediately; write tools create proposals.
 - Only `POST /proposals/:id/commit` commits.
 - Stock and balances are sums over append-only ledgers.
+- A batch's `remaining` is a FIFO layer, not a stock balance; on-hand is summed from movements.
 - Money is stored and calculated in whole paise.
 - Stock value and cost of goods are FIFO; summaries adjust across batches on hand.
 - Expiry belongs to a batch, never to an item as a whole.
@@ -143,11 +146,72 @@ Changing a provider changes environment, not module code.
 - Tokens can be revoked server-side.
 - Five failed sign-ins lock that shop for fifteen minutes; a wrong shop name and a wrong password return the same message.
 
+## HTTP surface
+
+Every route family answers failures as `{ code, message }`, with `retryAfterSeconds` added when a
+lockout is active.
+
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/health` | none | Liveness probe |
+| `POST` | `/auth/signup` | none | Create a shop and its owner, return a device token |
+| `POST` | `/auth/signin` | none | Exchange shop name and password for a device token |
+| `GET` | `/auth/me` | token | The signed-in shop and owner |
+| `POST` | `/auth/logout` | token | Revoke this device token |
+| `POST` | `/voice/transcribe` | token | Sarvam speech-to-text, English output |
+| `GET` | `/items` | token | Items with stock on hand |
+| `GET` | `/items/:itemId` | token | One item with stock on hand |
+| `POST` | `/items` | token | Create an item |
+| `PATCH` | `/items/:itemId` | token | Change name, unit, prices, reorder level, GST or HSN |
+| `DELETE` | `/items/:itemId` | token | Archive an item; history stays |
+| `GET` | `/stock/summary` | token | On-hand quantity per item |
+| `GET` | `/stock/movements?itemId=` | token | Recent movements for one item |
+| `POST` | `/stock/receive` | token | Receive a batch, optionally with cost and expiry |
+| `POST` | `/stock/adjust` | token | Signed adjustment with a reason |
+
+Items and stock are separate modules. The items route is the composition layer that adds
+`stockOnHand` to each item, so neither module imports the other's internals.
+
 ## Deployment for the demo
 
-- Oracle instance, 2 GB RAM, bare metal first.
-- Node API behind Caddy or Nginx with HTTPS.
-- Postgres on the same instance, reached through `DATABASE_URL`.
+Two Vercel projects deploy from the `main` branch of the GitHub mirror, plus Supabase for
+Postgres.
+
+| Piece | Project | URL | Notes |
+| --- | --- | --- | --- |
+| API | `sauda` | `https://api.sauda.thedeploymentlab.app` | Root entrypoint `app.ts`, Express preset |
+| Web | `sauda-dash` | `https://dash.sauda.thedeploymentlab.app` | Vite preset, root directory `apps/web` |
+| Database | Supabase | pooler host, port 5432 | Prisma migrations run before a release |
+
+- The web build reads `VITE_API_BASE_URL` from the environment (Vercel project variable, with
+  `apps/web/.env.production` as the committed fallback), so the same source serves the web app
+  and the APK without hardcoded hosts.
+- `apps/web/vercel.json` sets the build and install commands, the SPA rewrite, and the security
+  headers. Vercel's project settings pin the root directory to `apps/web` and enable source
+  files outside the root directory so the workspace packages resolve.
+- CORS on the API allows the dash origin, the Vercel production alias, and the Capacitor
+  origins (`https://localhost`, `capacitor://localhost`).
+- The API sends `x-content-type-options`, `x-frame-options`, a deny-all
+  `content-security-policy`, `permissions-policy`, `cross-origin-opener-policy`,
+  `cross-origin-resource-policy` and HSTS on every response; `x-powered-by` is disabled.
 - Prisma migrations run as a release step.
-- Containers are added after the demo; the module layout does not change.
-- Voice and LLM calls stay server-side so keys never reach the APK.
+- Voice and LLM calls stay server-side so keys never reach the APK or the web bundle.
+
+## Security scanning in CI
+
+The pipeline is split by concern: `.gitlab/ci/quality.yml` (lint, types, boundaries, tests,
+build), `.gitlab/ci/security.yml` (Semgrep SAST and secret detection),
+`.gitlab/ci/build.yml` (APK artifact named `sauda`) and `.gitlab/ci/dast.yml` (OWASP ZAP).
+
+DAST runs on the default branch only, because it scans the deployed apps.
+
+| Job | Target | Report |
+| --- | --- | --- |
+| `zap-web` | `DAST_WEB_URL` (defaults to the Vercel production URL) | `dast-reports/zap-web.json` |
+| `zap-api` | `DAST_API_URL/health` | `dast-reports/zap-api.json` |
+
+`tools/dast/zap_gate.py` turns ZAP's JSON report into a pass/fail gate. `.zap/rules.json` holds
+the accepted risk threshold (Medium and High fail) and an `allow` map from ZAP plugin id to a
+written reason. An alert is only suppressed when its id appears there with a reason, so every
+exception is a reviewed decision in version control rather than a silent ignore. Both reports
+are always uploaded as artifacts, so a failing scan can be inspected without re-running it.
