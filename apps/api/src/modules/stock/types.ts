@@ -37,6 +37,9 @@ export interface AdjustInput {
   delta: number;
   reason: string;
   fallbackUnitCostPaise: number;
+  /** Links the movement to the order or other record that caused it. */
+  referenceType?: string;
+  referenceId?: string;
 }
 
 export interface StockAuditWrite {

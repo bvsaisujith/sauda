@@ -141,6 +141,7 @@ model Item {
   salesLines    SalesBillLine[]
   purchaseLines PurchaseBillLine[]
   orderLines    PurchaseOrderLine[]
+  saleOrderLines OrderLine[]
 
   @@unique([shopId, name])
   @@index([shopId, packOfItemId])
@@ -223,6 +224,7 @@ model Party {
   name       String
   phone      String?
   area       String?
+  notes      String?
   isCustomer Boolean   @default(true)
   isSupplier Boolean   @default(false)
   createdAt  DateTime  @default(now())
@@ -234,6 +236,8 @@ model Party {
   purchaseBills  PurchaseBill[]
   purchaseOrders PurchaseOrder[]
   payments       Payment[]
+  orders         Order[]
+  bills          Bill[]
 
   @@unique([shopId, name])
   @@index([shopId, phone])
@@ -476,4 +480,105 @@ model AuditEntry {
 
   @@index([shopId, createdAt])
   @@index([entityType, entityId])
+}
+
+// ---------------------------------------------------------------------------
+// Orders, bills and payments (the touch/voice demo flow).
+// An order is editable while pending. Fulfilling it creates exactly one bill;
+// bill status and the closed flag are always derived from payments.
+// ---------------------------------------------------------------------------
+
+enum OrderType {
+  CUSTOMER
+  SUPPLIER
+}
+
+enum OrderStatus {
+  PENDING
+  FULFILLED
+  CANCELLED
+}
+
+enum BillPaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  shopId     String
+  type       OrderType
+  partyId    String
+  party      Party       @relation(fields: [partyId], references: [id])
+  orderDate  DateTime    @db.Date
+  status     OrderStatus @default(PENDING)
+  totalPaise Decimal     @db.Decimal(14, 0)
+  notes      String?
+  version    Int         @default(1)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
+
+  lines OrderLine[]
+  bill  Bill?
+
+  @@index([shopId, type, status])
+  @@index([shopId, orderDate])
+  @@index([partyId])
+}
+
+model OrderLine {
+  id             String  @id @default(cuid())
+  orderId        String
+  order          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId         String
+  item           Item    @relation(fields: [itemId], references: [id])
+  quantity       Decimal @db.Decimal(12, 3)
+  ratePaise      Decimal @db.Decimal(14, 0)
+  lineTotalPaise Decimal @db.Decimal(14, 0)
+
+  @@index([orderId])
+  @@index([itemId])
+}
+
+model Bill {
+  id         String            @id @default(cuid())
+  shopId     String
+  orderId    String            @unique
+  order      Order             @relation(fields: [orderId], references: [id])
+  partyId    String
+  party      Party             @relation(fields: [partyId], references: [id])
+  orderType  OrderType
+  billNumber String
+  totalPaise Decimal           @db.Decimal(14, 0)
+  paidPaise  Decimal           @default(0) @db.Decimal(14, 0)
+  status     BillPaymentStatus @default(UNPAID)
+  closed     Boolean           @default(false)
+  version    Int               @default(1)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  deletedAt  DateTime?
+
+  payments BillPayment[]
+
+  @@unique([shopId, billNumber])
+  @@index([shopId, status, createdAt])
+  @@index([shopId, partyId])
+}
+
+model BillPayment {
+  id          String      @id @default(cuid())
+  billId      String
+  bill        Bill        @relation(fields: [billId], references: [id])
+  amountPaise Decimal     @db.Decimal(14, 0)
+  paidOn      DateTime    @db.Date
+  mode        PaymentMode @default(CASH)
+  note        String?
+  version     Int         @default(1)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  @@index([billId, paidOn])
 }

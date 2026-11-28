@@ -38,16 +38,17 @@ flowchart TD
 | `auth` | Shop accounts, salted password hashing, device tokens and revocation |
 | `items` | Items, units, pack size, prices, HSN and GST rate |
 | `stock` | Append-only batch movements, FIFO layers and stock queries |
+| `parties` | Customer and supplier profiles, balances derived from bills |
+| `orders` | Customer and supplier orders, fulfilment and the stock effect |
+| `bills` | Bills, payments, derived status, reopening and recalculation |
+| `audit` | Actor, source, operation and before/after history |
 | `repack` | Consuming base stock, producing packs, wastage and reversal |
-| `parties` | Customer/supplier profiles and contact import/export |
-| `bills` | Sales and purchase bills and bill lines |
 | `gst` | Tax calculation, CGST/SGST split and GST summaries |
 | `payments` | Payment records and reversals |
 | `credit` | Receivable, payable and advance ledgers |
 | `purchasing` | Budgets, purchase drafts, purchase orders and goods receipt |
 | `demand` | Velocity, festival notes, dead-stock and expiry signals |
 | `proposals` | Preview, approval, expiry and one-time commit |
-| `audit` | Actor, source, operation and before/after history |
 | `agent` | Tool definitions and the model loop |
 | `voice` | Microphone gateway and Sarvam transcription |
 
@@ -168,9 +169,37 @@ lockout is active.
 | `GET` | `/stock/movements?itemId=` | token | Recent movements for one item |
 | `POST` | `/stock/receive` | token | Receive a batch, optionally with cost and expiry |
 | `POST` | `/stock/adjust` | token | Signed adjustment with a reason |
+| `GET` | `/parties` | token | Parties with receivable and payable balances |
+| `GET` | `/parties/:partyId` | token | One party with its bills and balances |
+| `POST` | `/parties` | token | Create a customer or supplier |
+| `PATCH` | `/parties/:partyId` | token | Change name, phone, address, notes or type |
+| `DELETE` | `/parties/:partyId` | token | Archive a party; history stays |
+| `GET` | `/orders` | token | Orders filtered by type, status, party or search |
+| `GET` | `/orders/:orderId` | token | One order with its lines |
+| `POST` | `/orders` | token | Create an order, optionally fulfilling it in the same call |
+| `PATCH` | `/orders/:orderId` | token | Edit an order; needs `version` |
+| `POST` | `/orders/:orderId/fulfil` | token | Fulfil a pending order and create its bill |
+| `DELETE` | `/orders/:orderId` | token | Delete an order, its bill and reverse stock |
+| `GET` | `/bills` | token | Bills filtered by status, type, party or search |
+| `GET` | `/bills/:billId` | token | One bill with payments and its order |
+| `POST` | `/bills/:billId/payments` | token | Record a payment |
+| `POST` | `/bills/:billId/reopen` | token | Reopen a closed bill |
+| `PATCH` | `/payments/:paymentId` | token | Edit a payment; needs `version` |
+| `DELETE` | `/payments/:paymentId` | token | Delete a payment |
+| `GET` | `/dashboard/summary` | token | Today's sales, purchases, outstanding and bill counts |
+| `GET` | `/audit` | token | History entries, filterable by entity |
 
 Items and stock are separate modules. The items route is the composition layer that adds
 `stockOnHand` to each item, so neither module imports the other's internals.
+
+The same composition rule holds for parties, orders and bills: the route adds the party name
+and item names, so `parties`, `orders` and `bills` never import each other's internals. The
+`orders` module calls `bills` and `stock` through their `public.ts` doors only.
+
+Bill status is derived, never stored by hand. `billStatus(total, paid)` in `packages/shared`
+is the single source: `unpaid` at zero, `partial` below the total, `paid` at or above it.
+`closed` follows `status === 'paid'`. Reopening clears `closed` without touching the status,
+so the next payment or edit recalculates it.
 
 ## Deployment for the demo
 

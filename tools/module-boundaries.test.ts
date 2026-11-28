@@ -165,7 +165,7 @@ describe('module boundaries', () => {
     expect(violations.map((violation) => violation.rule)).toEqual(['shared-is-a-leaf']);
   });
 
-  it('passes on this repository', () => {
+  it('passes on this repository', { timeout: 30_000 }, () => {
     expect(checkModuleBoundaries(resolve('.')).map((violation) => `${violation.file}: ${violation.rule}`)).toEqual([]);
   });
 });

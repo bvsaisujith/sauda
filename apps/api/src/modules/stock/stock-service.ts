@@ -8,7 +8,11 @@ export interface StockService {
   onHand(shopId: string, itemId: string): Promise<number>;
   onHandByShop(shopId: string): Promise<Map<string, number>>;
   receive(actor: StockActor, input: StockReceiveRequest): Promise<StockWriteResult>;
-  adjust(actor: StockActor, input: StockAdjustRequest): Promise<StockWriteResult>;
+  adjust(
+    actor: StockActor,
+    input: StockAdjustRequest,
+    reference?: { type: string; id: string },
+  ): Promise<StockWriteResult>;
   listMovements(shopId: string, itemId: string, limit?: number): Promise<StockMovementDto[]>;
 }
 
@@ -65,7 +69,7 @@ export function createStockService(store: StockStore, items: ItemsService): Stoc
       return { movement: toMovementDto(movement), onHand };
     },
 
-    async adjust(actor, input) {
+    async adjust(actor, input, reference) {
       const item = await requireItem(actor.shopId, input.itemId);
       const delta = roundQuantity(input.delta);
       const before = await store.onHand(actor.shopId, item.id);
@@ -79,6 +83,9 @@ export function createStockService(store: StockStore, items: ItemsService): Stoc
           delta,
           reason: input.reason,
           fallbackUnitCostPaise: item.buyPricePaise,
+          ...(reference === undefined
+            ? {}
+            : { referenceType: reference.type, referenceId: reference.id }),
         });
       } catch (error) {
         if (error instanceof InsufficientStockError) {

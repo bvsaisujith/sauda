@@ -5,6 +5,12 @@ import { createPrivateAuthRouter, createPublicAuthRouter } from './routes/auth-r
 import { createItemRouter } from './routes/item-routes.js';
 import { createStockRouter } from './routes/stock-routes.js';
 import { createSttRouter } from './routes/stt-routes.js';
+import { createPartyRouter } from './routes/party-routes.js';
+import { createOrderRouter } from './routes/order-routes.js';
+import { createBillRouter } from './routes/bill-routes.js';
+import { createPaymentRouter } from './routes/payment-routes.js';
+import { createDashboardRouter } from './routes/dashboard-routes.js';
+import { createAuditRouter } from './routes/audit-routes.js';
 import { cors } from './middleware/cors.js';
 import { securityHeaders } from './middleware/security-headers.js';
 import { healthPayload } from './health.js';
@@ -33,6 +39,12 @@ export function createApp(): Express {
 
   app.use('/items', requireAuth, createItemRouter());
   app.use('/stock', requireAuth, createStockRouter());
+  app.use('/parties', requireAuth, createPartyRouter());
+  app.use('/orders', requireAuth, createOrderRouter());
+  app.use('/bills', requireAuth, createBillRouter());
+  app.use('/payments', requireAuth, createPaymentRouter());
+  app.use('/dashboard', requireAuth, createDashboardRouter());
+  app.use('/audit', requireAuth, createAuditRouter());
 
   app.use((request, response) => {
     response

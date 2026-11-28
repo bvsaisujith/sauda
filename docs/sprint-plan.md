@@ -1,6 +1,6 @@
 # Sauda: Delivery Plan
 
-Status: Draft 3 | Date: 2026-11-21 | Owner: Sai Sujith
+Status: Draft 4 | Date: 2026-11-27 | Owner: Sai Sujith
 
 Two gates: a working demo on **29 November 2026** and V1 complete on **15 December 2026**.
 
@@ -10,28 +10,31 @@ Two gates: a working demo on **29 November 2026** and V1 complete on **15 Decemb
 
 - Items, units, sell price, buy price, reorder level
 - Stock batches, stock in, stock out, adjustments, current stock
+- Customers and suppliers, orders, bills and payments
+- Dashboard with today's sales, purchases and outstanding money
 - English voice for those operations
 - 22-language voice input through Sarvam, auto-detected
 - Installable Android APK
 - API and Postgres on the Oracle instance over HTTPS
 
-Sales bills, purchase bills, parties, GST, purchasing suggestions, repacking and payments are **not** in this gate.
+GST, purchasing suggestions, repacking, credit ledgers and analytics are **not** in this gate.
 
 ### Order of work
 
 1. Repository, workspaces, TypeScript, lint, CI, dependency-cruiser boundary rule
-2. Prisma schema for shop, owner, device token, item, batch, stock movement, audit
+2. Prisma schema for shop, owner, device token, item, batch, stock movement, party, order, bill, payment, audit
 3. Provider adapters and `.env.example`
 4. Item and stock module services through `public.ts`
 5. REST routes for items and stock
 6. Touch shell, item screen, stock screen
-7. Shared Zod tool registry and proposal/commit flow
-8. Text agent loop against OpenRouter
-9. Sarvam STT, English voice, read-back and approval
-10. 22-language auto-detect and its tests
-11. Capacitor Android build and APK signing
-12. Oracle deployment, HTTPS, migrations, seed data
-13. Demo script and fallback recording
+7. Parties, orders, bills and payments, with the dashboard and history
+8. Shared Zod tool registry and proposal/commit flow
+9. Text agent loop against OpenRouter
+10. Sarvam STT, English voice, read-back and approval
+11. 22-language auto-detect and its tests
+12. Capacitor Android build and APK signing
+13. Oracle deployment, HTTPS, migrations, seed data
+14. Demo script and fallback recording
 
 ### Demo definition of done
 
@@ -39,6 +42,8 @@ Sales bills, purchase bills, parties, GST, purchasing suggestions, repacking and
 - Shop sign-up and sign-in work.
 - The owner creates an item and sets its price by touch.
 - The owner adds stock by touch.
+- The owner adds a customer, creates an order and fulfils it, and the stock goes down.
+- The owner records a payment and the bill closes when it is fully paid.
 - The owner speaks an item and price instruction in English; the preview is read back and approved.
 - The same instruction works in at least three non-English languages, and all 22 are accepted by the STT adapter.
 - Stock on hand matches the movements after an approval and after a reversal.
@@ -57,6 +62,25 @@ Sales bills, purchase bills, parties, GST, purchasing suggestions, repacking and
 - Repacking with pack items, partial splits, wastage and reversal
 - Payments, FIFO allocation, advances and reversals
 - Reports, audit, integration and security tests
+
+### Delivered early (27 November 2026)
+
+Parties with dual roles, orders with fulfilment and stock effect, bills with payments and
+derived status, the dashboard and per-record history shipped ahead of Gate 1 on migration
+`0004_orders_bills_payments`. The remaining V1 work is GST on bills, purchasing, demand and
+repacking, and the FIFO payment allocation and advances described in `docs/payment-allocation.md`.
+
+### Open follow-ups
+
+| Issue | Work |
+| --- | --- |
+| #53 | Analytics screen (A12 / W5) |
+| #54 | Settings screen: shop profile, theme, data export (A15 / W8) |
+| #55 | In-app voice sheet and approval sheet (A13 / W7) |
+| #56 | Browser tests for the order-to-payment flow |
+| #57 | Pagination and server-side search on list routes |
+| #58 | Party statement with bills and payments in date order |
+| #59 | Live check of the 22 voice languages on a device |
 
 ### Order of work
 

@@ -8,7 +8,10 @@ const scryptAsync = promisify(scrypt) as (
   options: { N: number; r: number; p: number; maxmem: number },
 ) => Promise<Buffer>;
 
-const COST = 1 << 15;
+// Tests hash dozens of passwords, so they use a cheaper cost. The parameters
+// travel inside every stored hash, so verification always follows the cost a
+// hash was created with and a test hash can never be mistaken for a live one.
+const COST = process.env.NODE_ENV === 'test' ? 1 << 12 : 1 << 15;
 const BLOCK_SIZE = 8;
 const PARALLELISM = 1;
 const KEY_LENGTH = 64;

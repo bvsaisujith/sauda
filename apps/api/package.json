@@ -14,7 +14,8 @@
     "migrate:status": "prisma migrate status",
     "smoke:db": "tsx scripts/smoke-db.ts",
     "smoke:auth": "tsx scripts/smoke-auth.ts",
- "smoke:items": "tsx scripts/smoke-items.ts",
+    "smoke:items": "tsx scripts/smoke-items.ts",
+    "smoke:orders": "tsx scripts/smoke-orders.ts",
     "smoke:vercel": "tsx scripts/smoke-vercel-handler.ts",
     "smoke:vercel:auth": "tsx scripts/smoke-vercel-auth.ts",
     "mic:test": "tsx scripts/mic-test.ts"

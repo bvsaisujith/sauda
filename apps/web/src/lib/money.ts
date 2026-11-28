@@ -42,3 +42,18 @@ export function formatDateTime(iso: string): string {
     minute: '2-digit',
   }).format(new Date(iso));
 }
+
+/** Date-only values are sent as YYYY-MM-DD, so render them without a timezone shift. */
+export function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${iso.slice(0, 10)}T00:00:00`));
+}
+
+export function todayIso(): string {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
